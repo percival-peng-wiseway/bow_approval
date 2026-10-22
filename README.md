@@ -1,27 +1,27 @@
 # BOW Approval
 
-一个用于公司报销、项目报销和项目服务采购的审批工作台。界面为英文，币种 AUD。当前为可运行的 Node.js 本地版本；尚未适配 Cloudflare Workers / D1 / R2。
+An approval workspace for corporate reimbursements, project expenses, and project service purchases. The interface is in English and amounts are in AUD. The current application runs locally on Node.js; Cloudflare Workers, D1, and R2 support has not yet been implemented.
 
-## 功能
+## Features
 
-- Home 提供统一 Request 入口和待处理事项。
-- Corporation 报销：金额、日期、发票；按角色进行主管、Admin 和 Finance 审批。
-- Projects：按项目查看报销与服务采购，设置 PM、Director 和大额复核门槛。
-- 服务采购：Director + Finance 预批 → 申请人回传报价与合同 → 双方审批 → 付款计划 → 分期上传付款材料。尾款需验收证据、Director 审批和 Finance 复核。
-- 支持退回修改、撤回、转 Director 复查、取消未付款部分、附件和活动记录。
-- 服务端登录、权限校验和共享数据；原演示角色切换入口已移除。
-- 可选本地发票 OCR；付款功能记录实际线下支付结果，不执行银行转账。
+- **Home:** a single Request entry point and a list of items requiring attention.
+- **Corporation:** submit an amount, expense date, and invoice. Supervisor, Admin, and Finance reviews follow the applicant's role and workflow rules.
+- **Projects:** view reimbursements and service purchases separately, assign a PM and Director, and configure the large-expense review threshold.
+- **Service purchases:** Director and Finance pre-approval, applicant submission of quotes and contracts, approval by both reviewers, a payment plan, and supporting documents for each instalment. Final payments require acceptance evidence, Director approval, and Finance review.
+- Return for changes, withdrawal, Director review, cancellation of unpaid amounts, attachments, and activity history.
+- Server-side authentication, authorization, and shared data. The former demo role switcher has been removed.
+- Optional local invoice OCR. Payment records document payments made outside the application; the application does not initiate bank transfers.
 
-## 启动
+## Getting started
 
-需要 Node.js 22+，应用本身无需安装 npm 依赖。
+Node.js 22 or later is required. The application itself requires no npm dependencies.
 
 ```sh
 git clone https://github.com/percival-peng-wiseway/bow_approval.git
 cd bow_approval
 ```
 
-首次运行需初始化账号。以下命令在 Bash 中输入初始密码，不将密码写入代码或命令历史：
+Initialize accounts before the first run. In Bash, use the following commands to enter an initial password without placing it in source code or shell history:
 
 ```bash
 read -r -s -p "Initial password: " APPROVAL_INITIAL_PASSWORD
@@ -30,66 +30,62 @@ unset APPROVAL_INITIAL_PASSWORD
 npm run dev
 ```
 
-打开 <http://127.0.0.1:4185/>。后续启动直接运行 `npm run dev`；初始化脚本不会覆盖已有账号。可通过 `PORT` 设置端口，`APP_DATA_DIR` 设置私有数据目录。服务默认只监听本机回环地址。
+Open <http://127.0.0.1:4185/>. For subsequent starts, run `npm run dev` directly. The initialization script refuses to overwrite existing accounts. Set `PORT` to change the port or `APP_DATA_DIR` to use a different private data directory. The server listens on the local loopback interface by default.
 
-| 登录姓名 | 角色 |
-| --- | --- |
-| Joe | Director |
-| Jason | Director |
-| Steve | Director |
-| Lewis | Finance |
-| Kate | Admin |
-| Hassan Kassem | Project Manager |
-| Nidhi Pandey | Project Manager |
+## Data and authentication
 
-姓名不区分大小写。初始化时七个账号使用输入的初始密码；仓库不包含本机已配置的密码或账号哈希。
+- `.local/accounts.json`: password hashes generated with scrypt and a unique salt for each account.
+- `.local/workspace.json`: shared requests, projects, attachments, and approval records.
+- `.local/browser-import.json`: a backup of imported browser workspace data.
+- Sessions use HttpOnly, SameSite=Strict cookies and expire after 12 hours. Signing out or restarting the server invalidates the session.
+- The server derives the acting user from the session and validates each operation against the workflow rules. Revision checks prevent concurrent changes from overwriting one another.
+- This is a shared workspace for one organization. Signed-in members can read shared data; writes and approvals are restricted by role and workflow stage.
 
-## 数据与登录
+To migrate an earlier browser-based workspace, sign in with the Admin account in the original browser while the server workspace is still empty. The application imports `approval-workspace-v1`, preserves the browser copy, and does not overwrite existing server data. Legacy identity IDs remain available for historical references.
 
-- `.local/accounts.json`：每账号独立盐的 scrypt 密码哈希。
-- `.local/workspace.json`：共享申请、项目、附件与审批记录。
-- `.local/browser-import.json`：旧浏览器工作区的导入备份。
-- 会话使用 HttpOnly / SameSite=Strict Cookie，有效期 12 小时；退出或服务器重启后失效。
-- 服务端从会话读取身份，按业务规则验证操作。版本检查防止并发修改覆盖。
-- 当前为单组织共享工作区；已登录成员可读取共享数据，写入和审批按角色及流程限制。
+Private runtime data, environment files, research captures, and screenshots are excluded from Git. When moving to another computer, transfer private data separately and configure the runtime environment.
 
-在旧版本的原浏览器用 Kate 登录，且服务端工作区尚为空时，会自动导入 `approval-workspace-v1`。原浏览器副本保留，不覆盖已有服务端数据。旧角色编号保留用于历史关联；Employee、PM C/D 没有新登录账号。
+## Invoice OCR (optional)
 
-私有运行数据、环境文件、研究抓取材料和截图不纳入 Git。换电脑使用时，单独迁移私有数据并配置运行环境。
+Use **Scan invoice** in a reimbursement form to scan PDF, PNG, JPEG, or WebP files. The application extracts amounts and dates and retains the original document. Review the extracted information before submitting.
 
-## 发票 OCR（可选）
-
-报销表单内的 **Scan invoice** 可扫描 PDF、PNG、JPEG、WebP，识别金额和日期并保留原件。请核对识别结果。
-
-需要 Python 及 `pypdf`、`pypdfium2`、`Pillow`，以及包含 `eng` 语言包的 Tesseract。通过以下环境变量指定安装位置：
+OCR requires Python with `pypdf`, `pypdfium2`, and `Pillow`, plus Tesseract with the `eng` language pack. Specify their locations using environment variables:
 
 ```sh
 INVOICE_PYTHON=/path/to/python3 INVOICE_TESSERACT=/path/to/tesseract npm run dev
 ```
 
-未配置 OCR 时，仍可手工填写并上传凭证。现有默认路径针对原开发电脑，不适用于所有环境。
+Manual entry and attachment uploads remain available without OCR. The default OCR paths target the original development computer and may need to be changed on other systems.
 
-## 验证
+## Tests
 
 ```sh
 npm test
 ```
 
-42 项测试覆盖业务规则、认证、七个账号、越权及身份伪造、并发冲突、迁移和会话失效。测试使用临时目录及临时服务器，不修改实际工作区。
+The test suite covers business rules, authentication, authorization, identity spoofing, revision conflicts, migration, and session invalidation. Server tests use temporary directories and servers without modifying the actual workspace.
 
-`node tests/auth-browser.mjs` 为当前登录版本的端到端验证，覆盖报销及服务审批到付款流程。该脚本使用开发电脑已有的 Chrome / Playwright 绝对路径，其他环境需调整路径。其他使用 Demo role 的浏览器脚本属于历史版本记录。
+Run `node tests/auth-browser.mjs` for end-to-end checks of the authenticated reimbursement and service approval flows through payment recording. This script currently uses absolute paths to Chrome and Playwright on the development computer; adjust those paths for another environment. Other browser scripts that use the Demo role switcher are retained as historical tests.
 
-## 目录
+## Project structure
 
-- `app/`：界面及审批领域逻辑。
-- `server.mjs`：HTTP 服务、API 和发票扫描入口。
-- `server/`：账号、会话及共享数据持久化。
-- `ocr/`：本地文本提取与发票解析。
-- `scripts/create-accounts.mjs`：账号初始化。
-- `tests/`：领域、接口和浏览器测试；发票样例均为合成测试文件。
+- `app/`: interface and approval domain logic.
+- `server.mjs`: HTTP server, API routes, and invoice scanning endpoints.
+- `server/`: accounts, sessions, and shared data persistence.
+- `ocr/`: local document extraction and invoice parsing.
+- `scripts/create-accounts.mjs`: account initialization.
+- `tests/`: domain, API, and browser tests. Invoice fixtures are synthetic test documents.
 
-## 部署范围
+## Branches
 
-本仓库上传不等同于上线。Cloudflare 部署需要适配服务端入口，将文件数据和内存会话迁到持久化服务，迁移附件，并另外配置 OCR。当前没有接入银行、会计系统或邮件通知，也未提供多组织隔离及不可篡改审计保证。
+- `main`: the main development branch.
+- `QA`: the branch for QA validation.
+- `prod`: the branch for production releases.
 
-本项目基于公开产品信息独立实现工作流，没有包含 ApprovalMax 私有源码或 API。研究证据和历史迭代记录保留在原开发工作区的 `evidence/`，不随此源码仓库上传。
+The QA and production branches start from the same code version. Branch creation does not configure deployment environments or automatic releases.
+
+## Deployment scope
+
+Uploading this repository does not deploy the application. Cloudflare deployment requires adapting the server entry point, moving file-based data and in-memory sessions to persistent services, migrating attachments, and configuring OCR separately. Bank, accounting, and email integrations are not connected. Multi-organization isolation and tamper-proof auditing are not implemented.
+
+The workflows were independently implemented using public product information. This repository does not contain ApprovalMax's private source code or APIs. Research evidence and historical implementation notes remain in the original development workspace under `evidence/` and are not included in this repository.
