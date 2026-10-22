@@ -1,0 +1,52 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import {once} from 'node:events';
+import {provisionAccounts} from '../server/auth.mjs';
+import {createWorkspaceServer} from '../server.mjs';
+import {initialState} from '../app/domain.mjs';
+const password='test-password-only';
+test('authenticated shared workspace: accounts, authorization, migration, persistence and session isolation',async()=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'approval-auth-'));
+ let server;
+ try{
+ await provisionAccounts(dir,password);server=await createWorkspaceServer({dataDir:dir});server.listen(0,'127.0.0.1');await once(server,'listening');
+ const base='http://127.0.0.1:'+server.address().port;
+ const call=async(route,{cookie,method='GET',data,origin=base}={})=>{const r=await fetch(base+route,{method,headers:{...(cookie?{Cookie:cookie}:{}),...(method==='POST'?{'Content-Type':'application/json','X-Requested-With':'ApprovalWorkspace',Origin:origin}:{})},body:data===undefined?undefined:JSON.stringify(data)});return {status:r.status,cookie:r.headers.get('set-cookie'),body:await r.json()};};
+ const login=(username,pwd=password)=>call('/api/auth/login',{method:'POST',data:{username,password:pwd}});
+ const names=['Joe','Jason','Steve','Lewis','Kate','Hassan Kassem','Nidhi Pandey'],sessions={};
+ assert.equal((await call('/api/workspace')).status,401);
+ assert.equal((await call('/api/workspace/command',{method:'POST',data:{}})).status,401);
+ assert.equal((await login('Joe','bad-password')).status,401);
+ for(const name of names){const r=await login(name);assert.equal(r.status,200);assert.equal(r.body.user.name,name);assert.match(r.cookie,/HttpOnly; SameSite=Strict/);sessions[name]=r.cookie.split(';')[0];}
+ assert.equal((await login(' hassan   KASSEM ')).status,200);
+ assert.equal((await login('Admin')).status,401);
+ for(const url of ['/.local/accounts.json','/.local/workspace.json','/server/auth.mjs','/app/../.local/accounts.json'])assert.equal((await call(url)).status,404);
+ assert.equal((await call('/api/workspace/command',{cookie:sessions.Kate,method:'POST',origin:'http://evil.invalid',data:{}})).status,403);
+ const legacy=initialState();legacy.business={projects:[],requests:[]};
+ assert.equal((await call('/api/workspace/command',{cookie:sessions['Hassan Kassem'],method:'POST',data:{revision:0,operation:'import',data:legacy}})).status,403);
+ let r=await call('/api/workspace/command',{cookie:sessions.Kate,method:'POST',data:{revision:0,operation:'import',data:legacy}});assert.equal(r.status,200);assert.equal(r.body.imported,true);
+ const cmd=async(name,input)=>{const current=await call('/api/workspace',{cookie:sessions[name]});return call('/api/workspace/command',{cookie:sessions[name],method:'POST',data:{revision:current.body.revision,...input}});};
+ const project={name:'Shared project',pm:'taylor',director:'sam',threshold:10000};
+ assert.equal((await cmd('Hassan Kassem',{operation:'project',data:project})).status,400);
+ r=await cmd('Kate',{operation:'project',data:project});assert.equal(r.status,200);const projectId=r.body.result.id;
+ const revision=r.body.revision;
+ r=await cmd('Hassan Kassem',{operation:'request',actor:'alex',submit:true,data:{kind:'corporation',amount:50,invoiceDate:'2026-10-22',requester:'alex',attachments:[{name:'receipt.txt',data:'data:text/plain;base64,YQ==',type:'text/plain',size:1}]}});assert.equal(r.status,200);const requestId=r.body.result.id;assert.equal(r.body.result.requester,'taylor');
+ assert.equal((await call('/api/workspace/command',{cookie:sessions.Kate,method:'POST',data:{revision,operation:'project',data:project}})).status,409);
+ assert.equal((await cmd('Hassan Kassem',{operation:'action',id:requestId,action:'approve',actor:'alex'})).status,400);
+ assert.equal((await cmd('Nidhi Pandey',{operation:'request',id:requestId,data:{amount:1}})).status,400);
+ assert.equal((await cmd('Kate',{operation:'action',id:requestId,action:'approve'})).status,200);
+ r=await cmd('Lewis',{operation:'action',id:requestId,action:'approve'});assert.equal(r.body.result.stage,'Ready to pay');assert.deepEqual(r.body.result.history.filter(e=>e.action==='Approved').map(e=>e.actor),['alex','jamie']);
+ r=await cmd('Hassan Kassem',{operation:'request',submit:true,data:{kind:'service',projectId,title:'Design',background:'Site',purpose:'Upgrade',approach:'Survey',amount:1000,attachments:[]}});assert.equal(r.status,200);const serviceId=r.body.result.id;
+ r=await cmd('Joe',{operation:'action',id:serviceId,action:'approve'});assert.equal(r.body.result.stage,'Budget review');
+ r=await cmd('Lewis',{operation:'action',id:serviceId,action:'approve'});assert.equal(r.body.result.stage,'Sourcing');
+ assert.equal((await call('/api/workspace/command',{cookie:sessions.Kate,method:'POST',data:{revision:r.body.revision,operation:'import',data:legacy}})).status,409);
+ await call('/api/auth/logout',{cookie:sessions.Joe,method:'POST',data:{}});assert.equal((await call('/api/workspace',{cookie:sessions.Joe})).status,401);assert.equal((await call('/api/workspace',{cookie:sessions.Kate})).status,200);
+ const stored=await fs.readFile(path.join(dir,'accounts.json'),'utf8');assert.ok(!stored.includes(password));assert.equal(JSON.parse(stored).length,7);assert.ok(JSON.parse(stored).every(a=>a.salt&&a.hash));
+ for(let i=0;i<8;i++)assert.equal((await login('unknown','bad')).status,401);assert.equal((await login('unknown','bad')).status,429);
+ await new Promise(resolve=>server.close(resolve));server=await createWorkspaceServer({dataDir:dir});server.listen(0,'127.0.0.1');await once(server,'listening');
+ const storedState=JSON.parse(await fs.readFile(path.join(dir,'workspace.json'),'utf8'));assert.equal(storedState.state.business.requests.length,2);assert.equal(storedState.state.business.requests[0].stage,'Sourcing');assert.ok(await fs.stat(path.join(dir,'browser-import.json')));
+ }finally{if(server?.listening)await new Promise(resolve=>server.close(resolve));await fs.rm(dir,{recursive:true,force:true});}
+});

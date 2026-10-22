@@ -1,0 +1,15 @@
+.local/
+node_modules/
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+.wrangler/
+.DS_Store
+__pycache__/
+*.py[cod]
+*.log
+*.zip
+coverage/
+/evidence/
