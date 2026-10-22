@@ -1,1 +1,23 @@
-{"name":"approval-workspace-reconstruction","version":"1.0.0","private":true,"type":"module","scripts":{"dev":"node server.mjs","start":"node server.mjs","test":"node --test tests/*.test.mjs"}}
+{
+  "name": "approval-workspace-reconstruction",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "start": "node server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "build": "node scripts/build-cloud.mjs",
+    "dev:cloud": "wrangler dev --env QA",
+    "deploy:qa": "wrangler d1 migrations apply DB --env QA --remote && wrangler deploy --env QA",
+    "deploy:prod": "wrangler d1 migrations apply DB --env prod --remote && wrangler deploy --env prod",
+    "check:cloud": "wrangler deploy --dry-run --env QA",
+    "test:cloud": "node tests/cloud-integration.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "4.152.0"
+  },
+  "dependencies": {
+    "@cloudflare/containers": "0.3.7"
+  }
+}

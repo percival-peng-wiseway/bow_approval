@@ -1,0 +1,162 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "account_id": "0ae1d18172752871ccd9264d758559b0",
+  "main": "cloud/worker.mjs",
+  "compatibility_date": "2026-10-22",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": "dist",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "build": {
+    "command": "npm run build"
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "InvoiceOCR"
+      ]
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "limits": {
+    "cpu_ms": 30000
+  },
+  "name": "bow-approval",
+  "vars": {
+    "APP_ENV": "prod"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "bow-approval-prod",
+      "database_id": "f4d00b6a-cff4-4bd9-b5d4-ec7a0335b810",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "FILES",
+      "bucket_name": "bow-approval-prod-files"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "OCR",
+        "class_name": "InvoiceOCR"
+      }
+    ]
+  },
+  "containers": [
+    {
+      "name": "bow-approval-ocr-prod",
+      "class_name": "InvoiceOCR",
+      "image": "./ocr/Dockerfile",
+      "image_build_context": ".",
+      "instance_type": "basic",
+      "max_instances": 1
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "17 * * * *"
+    ]
+  },
+  "env": {
+    "QA": {
+      "name": "bow-approval-qa",
+      "vars": {
+        "APP_ENV": "qa"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "bow-approval-qa",
+          "database_id": "d6f213ee-113e-4eb2-a4ea-294abd99d383",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "FILES",
+          "bucket_name": "bow-approval-qa-files"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "OCR",
+            "class_name": "InvoiceOCR"
+          }
+        ]
+      },
+      "containers": [
+        {
+          "name": "bow-approval-ocr-qa",
+          "class_name": "InvoiceOCR",
+          "image": "./ocr/Dockerfile",
+          "image_build_context": ".",
+          "instance_type": "basic",
+          "max_instances": 1
+        }
+      ],
+      "triggers": {
+        "crons": [
+          "17 * * * *"
+        ]
+      }
+    },
+    "prod": {
+      "name": "bow-approval",
+      "vars": {
+        "APP_ENV": "prod"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "bow-approval-prod",
+          "database_id": "f4d00b6a-cff4-4bd9-b5d4-ec7a0335b810",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "FILES",
+          "bucket_name": "bow-approval-prod-files"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "OCR",
+            "class_name": "InvoiceOCR"
+          }
+        ]
+      },
+      "containers": [
+        {
+          "name": "bow-approval-ocr-prod",
+          "class_name": "InvoiceOCR",
+          "image": "./ocr/Dockerfile",
+          "image_build_context": ".",
+          "instance_type": "basic",
+          "max_instances": 1
+        }
+      ],
+      "triggers": {
+        "crons": [
+          "17 * * * *"
+        ]
+      }
+    }
+  }
+}

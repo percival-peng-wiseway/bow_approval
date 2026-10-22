@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {initialState} from '../app/domain.mjs';
-import {saveProject,createBusinessRequest,updateBusinessRequest,actBusiness,ensureBusiness} from '../app/business.mjs';
+import {ensureBusiness} from '../app/business.mjs';
+import {applyCommand} from './commands.mjs';
 export async function openWorkspace(dir){
  await fs.mkdir(dir,{recursive:true,mode:0o700});
  const file=path.join(dir,'workspace.json');let record;
@@ -20,14 +21,7 @@ export async function openWorkspace(dir){
    if(!Array.isArray(legacy?.requests)||!legacy.workflows||!Array.isArray(legacy?.business?.projects)||!Array.isArray(legacy?.business?.requests))throw new Error('Invalid browser workspace.');
    await fs.writeFile(path.join(dir,'browser-import.json'),JSON.stringify(legacy),{flag:'wx',mode:0o600}).catch(e=>{if(e.code!=='EEXIST')throw e;});
    next.state=structuredClone(legacy);next.imported=true;result={imported:true};
-  }else if(input.operation==='project'){
-   if(!['taylor','pm-b'].includes(input.data?.pm)||!['sam','director-b','director-c'].includes(input.data?.director))throw new Error('Choose an active PM and Director.');
-   result=saveProject(next.state,input.data,actor);
-  }else if(input.operation==='request'){
-   result=input.id?updateBusinessRequest(next.state,input.id,input.data,actor):createBusinessRequest(next.state,input.data,actor);
-   if(input.submit)actBusiness(next.state,result.id,actor,'submit');
-  }else if(input.operation==='action')result=actBusiness(next.state,input.id,actor,input.action,input.data);
-  else throw new Error('Unknown operation.');
+  }else result=applyCommand(next.state,actor,input);
   next.revision++;delete next.state.actor;await save(next);return {...view(actor),result};
  })};
 }

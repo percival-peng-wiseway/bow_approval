@@ -13,3 +13,6 @@ __pycache__/
 *.zip
 coverage/
 /evidence/
+
+/dist/
+/.cloudflare/
