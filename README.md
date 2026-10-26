@@ -114,6 +114,8 @@ The workflows were independently implemented using public product information. T
 
 ## Customer projects and confirmations
 
+**Enter customer preview** opens `/#customer-demo` immediately without email verification. It uses public, fictional projects in browser memory, including a confirmation and a completed handover. Preview decisions do not call workspace APIs, send mail or change real requests. Reloading resets the sample. Real customer access remains at `/#customer` and requires an email sign-in link.
+
 Admin manages customers under **Customers** (company, contact, email and active status). Assign the customer in **Project settings**, then send the invitation. Customer accounts use single-use email sign-in links instead of shared passwords. Invitations expire in 72 hours; requested sign-in links expire in 15 minutes. Sessions expire after 12 hours. Deactivating a customer immediately blocks project and document access.
 
 For newly submitted services in a customer project, the order is:
