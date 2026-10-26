@@ -1,3 +1,5 @@
+import {localCustomerBackend} from './server/customer-local.mjs';
+import {mailConfigured,reconcileCustomerMail,flushCustomerMail,issueCustomerLink,portalRead,portalDecision} from './server/customer-service.mjs';
 import {localCheckStore,checkLocalContract,verifySourceChecks} from './server/abn-local.mjs';
 import http from 'node:http';
 import fs from 'node:fs/promises';
@@ -9,9 +11,13 @@ import {scanInvoice,MAX_FILE_BYTES} from './ocr/service.mjs';
 const root=path.dirname(fileURLToPath(import.meta.url));
 const types={'.html':'text/html; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.json':'application/json','.md':'text/plain; charset=utf-8'};
 const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(data));};
-export async function createWorkspaceServer({dataDir=process.env.APP_DATA_DIR||path.join(root,'.local')}={}){
+export async function createWorkspaceServer({dataDir=process.env.APP_DATA_DIR||path.join(root,'.local'),mailEnv=process.env,sendMail}={}){
 const checks=await localCheckStore(dataDir);
 const auth=await openAuth(dataDir),workspace=await openWorkspace(dataDir,{verifyCommand:(actor,input)=>verifySourceChecks(input,actor,checks)});
+const portal=await localCustomerBackend(dataDir,workspace);
+const mailSettings={...mailEnv,PUBLIC_APP_URL:mailEnv.PUBLIC_APP_URL||'http://127.0.0.1:4185'};
+let mailQueue=Promise.resolve();const syncMail=()=>{mailQueue=mailQueue.catch(()=>{}).then(async()=>{await reconcileCustomerMail(portal,mailSettings);await flushCustomerMail(portal,mailSettings,sendMail);});return mailQueue;};
+const accessLimits=new Map();const limitAccess=key=>{const current=accessLimits.get(key)||{count:0,until:Date.now()+900000};if(current.until<Date.now()){current.count=0;current.until=Date.now()+900000;}current.count++;accessLimits.set(key,current);if(current.count>10)throw Object.assign(new Error('Too many attempts. Try again later.'),{status:429});};
 let activeScans=0;
 const readBody=async(req,limit=12*1024*1024)=>{const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>limit)throw Object.assign(new Error('Request is too large.'),{status:413});chunks.push(chunk);}try{return JSON.parse(Buffer.concat(chunks).toString());}catch{throw Object.assign(new Error('Invalid request.'),{status:400});}};
 const server=http.createServer(async(req,res)=>{
@@ -25,13 +31,31 @@ const server=http.createServer(async(req,res)=>{
       if(url.pathname==='/api/auth/login'&&req.method==='POST'){
         const input=await readBody(req,4096);const session=await auth.login(input.username,input.password,req.socket.remoteAddress);res.setHeader('Set-Cookie',session.cookie);return json(res,200,{user:session.user});
       }
+      if(url.pathname==='/api/customer/access'&&req.method==='POST'){
+        limitAccess(req.socket.remoteAddress);const input=await readBody(req,4096);
+        if(input.token){const user=await portal.redeem(input.token),session=auth.createSession(user);res.setHeader('Set-Cookie',session.cookie);return json(res,200,{user});}
+        if(!mailConfigured(mailSettings)&&!sendMail)return json(res,503,{error:'Customer email sign-in is not configured yet. Contact the project team.'});
+        await issueCustomerLink(portal,mailSettings,input.email);await syncMail();return json(res,200,{ok:true});
+      }
       const actor=auth.user(req);
       if(!actor)return json(res,401,{error:'Please sign in to continue.'});
       if(url.pathname==='/api/auth/me'&&req.method==='GET')return json(res,200,{user:actor});
       if(url.pathname==='/api/auth/logout'&&req.method==='POST'){res.setHeader('Set-Cookie',auth.logout(req));return json(res,200,{ok:true});}
+      if(actor.role==='Customer'){
+        if(url.pathname==='/api/customer/workspace'&&req.method==='GET')return json(res,200,portalRead(workspace.read(actor.id),actor.id));
+        if(url.pathname==='/api/customer/decision'&&req.method==='POST')return json(res,200,await portalDecision(portal,actor.id,await readBody(req,8192)));
+        return json(res,403,{error:'Customer accounts cannot access internal workspace data.'});
+      }
+      if(url.pathname.startsWith('/api/customer/')){
+        if(actor.role!=='Admin')return json(res,403,{error:'Only Admin can manage customer access.'});
+        if(url.pathname==='/api/customer/admin'&&req.method==='GET'){await syncMail();return json(res,200,{configured:mailConfigured(mailSettings),mail:await portal.list()});}
+        if(url.pathname==='/api/customer/invite'&&req.method==='POST'){const input=await readBody(req,4096),c=workspace.read(actor.id).state.business.customers?.find(c=>c.id===input.id&&c.active);if(!c)return json(res,400,{error:'Choose an active customer.'});await issueCustomerLink(portal,mailSettings,c.email,{invite:true});await syncMail();return json(res,200,{ok:true,configured:mailConfigured(mailSettings)});}
+        if(url.pathname==='/api/customer/retry'&&req.method==='POST'){const input=await readBody(req,4096);await portal.retry(input.id);await syncMail();return json(res,200,{ok:true});}
+        return json(res,404,{error:'Not found.'});
+      }
       if(url.pathname==='/api/workspace'&&req.method==='GET')return json(res,200,workspace.read(actor.id));
       if(url.pathname==='/api/workspace/command'&&req.method==='POST'){
-        try{return json(res,200,await workspace.command(actor.id,await readBody(req)));}catch(e){return json(res,e.status||400,{error:e.message});}
+        try{const result=await workspace.command(actor.id,await readBody(req));void syncMail().catch(()=>{});return json(res,200,result);}catch(e){return json(res,e.status||400,{error:e.message});}
       }
       if(url.pathname==='/api/contracts/check-abn'&&req.method==='POST')return json(res,200,await checkLocalContract(workspace,checks,actor.id,await readBody(req,5*1024*1024)));
       if(!['/api/invoice/scan','/api/invoice/preview'].includes(url.pathname))return json(res,404,{error:'Not found.'});
@@ -62,6 +86,7 @@ const server=http.createServer(async(req,res)=>{
     res.end(req.method==='HEAD'?undefined:body);
   }catch(e){if(!res.headersSent)json(res,e.status||500,{error:e.status?e.message:'The request could not be completed.'});}
 });
+const timer=setInterval(()=>void syncMail().catch(()=>{}),60000);timer.unref();server.on('close',()=>clearInterval(timer));
 return server;
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){

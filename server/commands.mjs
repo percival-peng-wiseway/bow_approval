@@ -1,5 +1,8 @@
+import {saveCustomer,customerDecision} from '../app/customer-domain.mjs';
 import {saveProject,createBusinessRequest,updateBusinessRequest,actBusiness} from '../app/business.mjs';
 export function applyCommand(state,actor,input){
+ if(input.operation==='customer')return saveCustomer(state,input.data,actor);
+ if(input.operation==='customer-decision')return customerDecision(state,actor,input);
  if(input.operation==='project'){
   if(!['taylor','pm-b'].includes(input.data?.pm)||!['sam','director-b','director-c'].includes(input.data?.director))throw new Error('Choose an active PM and Director.');
   return saveProject(state,input.data,actor);

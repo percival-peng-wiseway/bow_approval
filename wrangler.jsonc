@@ -32,7 +32,8 @@
   },
   "name": "bow-approval",
   "vars": {
-    "APP_ENV": "prod"
+    "APP_ENV": "prod",
+    "PUBLIC_APP_URL": "https://bow-approval.percival-0ae.workers.dev"
   },
   "d1_databases": [
     {
@@ -75,7 +76,8 @@
     "QA": {
       "name": "bow-approval-qa",
       "vars": {
-        "APP_ENV": "qa"
+        "APP_ENV": "qa",
+        "PUBLIC_APP_URL": "https://bow-approval-qa.percival-0ae.workers.dev"
       },
       "d1_databases": [
         {
@@ -118,7 +120,8 @@
     "prod": {
       "name": "bow-approval",
       "vars": {
-        "APP_ENV": "prod"
+        "APP_ENV": "prod",
+        "PUBLIC_APP_URL": "https://bow-approval.percival-0ae.workers.dev"
       },
       "d1_databases": [
         {

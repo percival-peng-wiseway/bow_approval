@@ -7,8 +7,8 @@ function token(request){return request.headers.get('Cookie')?.split(';').map(v=>
 export function cookie(request,value,age){return `approval_session=${value}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${age}${new URL(request.url).protocol==='https:'?'; Secure':''}`;}
 export async function authenticated(request,env){
  const raw=token(request);if(!raw)fail(401,'Please sign in to continue.');
- const row=await env.DB.prepare('SELECT a.id FROM sessions s JOIN accounts a ON s.account_id=a.id WHERE s.token_hash=? AND s.expires_at>? AND a.active=1').bind(await hash(raw),Date.now()).first();
- const user=users.find(u=>u.id===row?.id&&!u.inactive);if(!user)fail(401,'Please sign in to continue.');return user;
+ const row=await env.DB.prepare('SELECT a.id,a.username,a.role FROM sessions s JOIN accounts a ON s.account_id=a.id WHERE s.token_hash=? AND s.expires_at>? AND a.active=1').bind(await hash(raw),Date.now()).first();
+ const user=row?.role==='Customer'?{id:row.id,name:row.username,email:row.username,role:'Customer'}:users.find(u=>u.id===row?.id&&!u.inactive);if(!user)fail(401,'Please sign in to continue.');return user;
 }
 export async function rateLimit(env,key,maximum,windowMs){
  const now=Date.now();const row=await env.DB.prepare(`INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN expires_at<=? THEN 1 ELSE count+1 END, expires_at=CASE WHEN expires_at<=? THEN ? ELSE expires_at END RETURNING count`).bind(key,now+windowMs,now,now,now+windowMs).first();

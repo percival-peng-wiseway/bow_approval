@@ -1,0 +1,33 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import {once} from 'node:events';
+import {createWorkspaceServer} from '../server.mjs';
+import {provisionAccounts} from '../server/auth.mjs';
+test('customer email access is one-time; customer APIs exclude internal data and enforce current ownership',async()=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'customer-api-')),sent=[];let server;
+ try{await provisionAccounts(dir,'test-only-password');server=await createWorkspaceServer({dataDir:dir,mailEnv:{},sendMail:async m=>{sent.push(m);return {status:'accepted',providerId:'test-'+m.id};}});server.listen(0,'127.0.0.1');await once(server,'listening');const base='http://127.0.0.1:'+server.address().port;
+ const call=async(route,cookie,data)=>{const r=await fetch(base+route,{method:data?'POST':'GET',headers:{...(cookie?{Cookie:cookie}:{}),...(data?{'Content-Type':'application/json',Origin:base,'X-Requested-With':'ApprovalWorkspace'}:{})},body:data?JSON.stringify(data):undefined});return {status:r.status,body:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0]};};
+ const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};const login=async name=>(await call('/api/auth/login',null,{username:name,password:'test-only-password'})).cookie;
+ const admin=await login('Kate'),pm=await login('Hassan Kassem'),director=await login('Joe');
+ const cmd=async(cookie,input)=>call('/api/workspace/command',cookie,{revision:ok(await call('/api/workspace',cookie)).revision,...input});
+ assert.equal((await cmd(pm,{operation:'customer',data:{name:'Forbidden',email:'x@example.invalid'}})).status,400);
+ const customer=ok(await cmd(admin,{operation:'customer',data:{name:'Customer A',email:'a@example.invalid'}})).result;
+ const p=ok(await cmd(admin,{operation:'project',data:{name:'Private site',pm:'taylor',director:'sam',customerId:customer.id,threshold:10000}})).result;
+ const request=ok(await cmd(pm,{operation:'request',submit:true,data:{kind:'service',projectId:p.id,title:'Engineering',background:'Site',purpose:'Need survey',approach:'Survey first',amount:1000,attachments:[]}})).result;assert.equal(request.stage,'Customer confirmation');
+ assert.equal((await cmd(director,{operation:'action',id:request.id,action:'approve'})).status,400);
+ ok(await call('/api/customer/invite',admin,{id:customer.id}));const message=sent.find(m=>m.kind==='access');assert.ok(message);const token=message.text.match(/#access=([a-f0-9]{64})/)[1];
+ const concurrent=await Promise.all([1,2].map(()=>call('/api/customer/access',null,{token})));assert.deepEqual(concurrent.map(r=>r.status).sort(),[200,400]);const cookie=concurrent.find(r=>r.status===200).cookie;
+ for(const route of ['/api/workspace','/api/customer/admin','/api/contracts/check-abn','/api/invoice/scan'])assert.equal((await call(route,cookie,route.includes('scan')||route.includes('abn')?{}:undefined)).status,403);
+ assert.equal((await call('/api/workspace/command',cookie,{operation:'project',data:{}})).status,403);
+ let view=ok(await call('/api/customer/workspace',cookie));assert.equal(view.projects.length,1);assert.equal(view.projects[0].requests[0].review.snapshot.amount,1000);assert.ok(!JSON.stringify(view).includes('workflows'));assert.ok(!JSON.stringify(view).includes('quotes'));
+ const decision={id:request.id,reviewId:request.customerReview.id,revision:view.revision,decision:'approve'};
+ ok(await call('/api/customer/decision',cookie,decision));assert.equal((await call('/api/customer/decision',cookie,decision)).status,409);
+ assert.equal(ok(await call('/api/workspace',admin)).state.business.requests[0].stage,'Budget review');
+ ok(await cmd(admin,{operation:'customer',data:{...customer,active:false}}));assert.equal((await call('/api/customer/workspace',cookie)).status,403);
+ assert.equal((await call('/api/customer/access',null,{token})).status,400);
+ const mail=ok(await call('/api/customer/admin',admin)).mail;assert.ok(!JSON.stringify(mail).includes(token));assert.ok(!JSON.stringify(mail).includes('#access='));
+ }finally{if(server)await new Promise(resolve=>server.close(resolve));await fs.rm(dir,{recursive:true,force:true});}
+});

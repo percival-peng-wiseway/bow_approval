@@ -3,13 +3,13 @@ import {initialState} from '../app/domain.mjs';
 import {applyCommand} from '../server/commands.mjs';
 import {normalizeFiles,referencedFileIds,discardFiles} from './files.mjs';
 import {fail} from './http.mjs';
-const collections={project:s=>s.business.projects,request:s=>s.business.requests,legacy:s=>s.requests};
-const fresh=()=>{const s=initialState();s.requests=[];s.business={projects:[],requests:[]};delete s.actor;return s;};
+const collections={customer:s=>s.business.customers||[],project:s=>s.business.projects,request:s=>s.business.requests,legacy:s=>s.requests};
+const fresh=()=>{const s=initialState();s.requests=[];s.business={projects:[],requests:[],customers:[]};delete s.actor;return s;};
 function safeJson(value){const json=JSON.stringify(value);if(new TextEncoder().encode(json).length>1800000)fail(413,'This record is too large. Split the request into smaller records.');return json;}
 export async function readWorkspace(env,actor){
  const [meta,entities]=await env.DB.batch([env.DB.prepare('SELECT * FROM workspace_meta WHERE id=1'),env.DB.prepare('SELECT * FROM entities ORDER BY position ASC')]);
  const row=meta.results[0];if(!row)fail(503,'Database migrations have not been applied.');
- const base=JSON.parse(row.base_json),state={...fresh(),...base,requests:[],business:{projects:[],requests:[]}};
+ const base=JSON.parse(row.base_json),state={...fresh(),...base,requests:[],business:{projects:[],requests:[],customers:[]}};
  for(const item of entities.results){const target=collections[item.collection]?.(state);if(target)target.push(JSON.parse(item.payload));}
  state.actor=actor;state.storageMode='cloud';state.environment=env.APP_ENV||'prod';
  return {state,revision:row.revision,imported:!!row.imported,canImport:row.revision===0&&!row.imported};

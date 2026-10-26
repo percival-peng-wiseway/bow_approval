@@ -17,7 +17,8 @@ export async function openAuth(dir){
  const sessions=new Map(),attempts=new Map();
  const publicUser=id=>users.find(u=>u.id===id);
  return {
-  user(req){const token=req.headers.cookie?.split(';').map(x=>x.trim()).find(x=>x.startsWith('approval_session='))?.slice(17);if(!token)return null;const key=digest(token),session=sessions.get(key);if(!session||session.expires<Date.now()){sessions.delete(key);return null;}return publicUser(session.id);},
+  createSession(user){const token=randomBytes(32).toString('hex');sessions.set(digest(token),{id:user.id,user,expires:Date.now()+43200000});return {user,cookie:`approval_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200`};},
+  user(req){const token=req.headers.cookie?.split(';').map(x=>x.trim()).find(x=>x.startsWith('approval_session='))?.slice(17);if(!token)return null;const key=digest(token),session=sessions.get(key);if(!session||session.expires<Date.now()){sessions.delete(key);return null;}return session.user||publicUser(session.id);},
   async login(username,password,address){
    const key=address+':'+normalize(username),now=Date.now();
    for(const [key,v] of attempts)if(v.until<now)attempts.delete(key);

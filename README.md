@@ -108,6 +108,36 @@ Cloudflare environments are isolated: `QA` deploys to `bow-approval-qa`, and `pr
 
 For Cloudflare setup, account provisioning, migration, and test commands, see [Cloudflare deployment](docs/CLOUDFLARE.md). The Worker serves the UI and authenticated API; D1 stores accounts, sessions, requests and audit records; R2 stores private attachments. OCR runs in a dedicated Container with no internet access and sleeps after two idle minutes.
 
-Bank, accounting, and email integrations are not connected. Multi-organization isolation and tamper-proof auditing are not implemented.
+Bank and accounting integrations are not connected. Customer email uses the optional Resend configuration below. Internal staff share one workspace; customer accounts have a separate, restricted portal. Tamper-proof auditing is not implemented.
 
 The workflows were independently implemented using public product information. This repository does not contain ApprovalMax's private source code or APIs. Research evidence and historical implementation notes remain in the original development workspace under `evidence/` and are not included in this repository.
+
+## Customer projects and confirmations
+
+Admin manages customers under **Customers** (company, contact, email and active status). Assign the customer in **Project settings**, then send the invitation. Customer accounts use single-use email sign-in links instead of shared passwords. Invitations expire in 72 hours; requested sign-in links expire in 15 minutes. Sessions expire after 12 hours. Deactivating a customer immediately blocks project and document access.
+
+For newly submitted services in a customer project, the order is:
+
+1. Customer reviews the scope, background, approach and estimated budget.
+2. Confirmation releases the existing Director and Finance pre-approval flow. A decline or change request returns the item to the applicant.
+3. Quotes/contracts, ABN checks, dual internal approval and staged payments continue as before. An increased supplier budget needs a fresh customer confirmation before further internal approval.
+4. Completed services appear in the customer's archive. The project team uses **Publish completion** to share a completion summary and selected documents.
+
+Customer responses are versioned; edits and withdrawn pending confirmations require a new response. Customer ownership cannot be changed after a project has shared service requests. Existing projects without a customer retain their current approval flow; historical internal requests are not automatically shared.
+
+Customers receive a separate, server-filtered portal. Internal workspace APIs, reimbursements, supplier quotes/contracts, ABN findings, approval notes and payment receipts are inaccessible. Only explicitly published completion files are downloadable by the assigned active customer.
+
+### Email delivery
+
+The initial adapter uses Resend's HTTPS API. Configure a verified sender in `EMAIL_FROM` and an API key in the server-only `RESEND_API_KEY` secret. `PUBLIC_APP_URL` is set independently for QA and production in Wrangler; set it for local email testing if needed. Local Node reads these values from its process environment. Do not commit secrets or put keys in browser code.
+
+```sh
+npx wrangler secret put RESEND_API_KEY --env QA
+npx wrangler secret put EMAIL_FROM --env QA
+npx wrangler secret put RESEND_API_KEY --env prod
+npx wrangler secret put EMAIL_FROM --env prod
+```
+
+Pending confirmations generate durable outbox records. Invitation and sign-in links are stored only in private email payloads, and token hashes are used for redemption. Background processing sends queued notifications when configured. Expired or superseded notices are cancelled. Failed messages remain visible to Admin and can be retried within the provider's idempotency window using their original message ID. An accepted API response is labeled **Sent to provider**, not delivered to the inbox. Delivery/bounce webhooks are not configured.
+
+Without sender credentials, messages stay **Queued** and the UI explicitly says email delivery is not configured. No real customer email is sent by the test suite. Apply migration `0003_customer_portal.sql` before deploying this version.
