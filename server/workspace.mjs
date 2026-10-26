@@ -3,7 +3,7 @@ import path from 'node:path';
 import {initialState} from '../app/domain.mjs';
 import {ensureBusiness} from '../app/business.mjs';
 import {applyCommand} from './commands.mjs';
-export async function openWorkspace(dir){
+export async function openWorkspace(dir,{verifyCommand=async()=>{}}={}){
  await fs.mkdir(dir,{recursive:true,mode:0o700});
  const file=path.join(dir,'workspace.json');let record;
  try{record=JSON.parse(await fs.readFile(file,'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;record={revision:0,imported:false,state:initialState()};ensureBusiness(record.state);}
@@ -13,6 +13,7 @@ export async function openWorkspace(dir){
  const save=async next=>{const tmp=file+'.tmp';await fs.writeFile(tmp,JSON.stringify(next),{mode:0o600});await fs.rename(tmp,file);record=next;};
  return {read:view,command:(actor,input)=>serialize(async()=>{
   if(input.revision!==record.revision)throw Object.assign(new Error('The workspace changed. Review the latest data and try again.'),{status:409});
+  await verifyCommand(actor,input);
   const next=structuredClone(record);let result;
   if(input.operation==='import'){
    if(actor!=='alex')throw Object.assign(new Error('Only Kate can import the existing workspace.'),{status:403});

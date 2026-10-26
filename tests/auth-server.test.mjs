@@ -43,10 +43,21 @@ test('authenticated shared workspace: accounts, authorization, migration, persis
  r=await cmd('Joe',{operation:'action',id:serviceId,action:'approve'});assert.equal(r.body.result.stage,'Budget review');
  r=await cmd('Lewis',{operation:'action',id:serviceId,action:'approve'});assert.equal(r.body.result.stage,'Sourcing');
  assert.equal((await call('/api/workspace/command',{cookie:sessions.Kate,method:'POST',data:{revision:r.body.revision,operation:'import',data:legacy}})).status,409);
+ const contract={name:'contract.txt',type:'text/plain',data:'data:text/plain;base64,Tm8gQUJO',size:6};
+ const checkInput={requestId:serviceId,supplier:'Test supplier',files:[contract]};
+ assert.equal((await call('/api/contracts/check-abn',{cookie:sessions.Kate,method:'POST',data:checkInput})).status,403);
+ const check=await call('/api/contracts/check-abn',{cookie:sessions['Hassan Kassem'],method:'POST',data:checkInput});assert.equal(check.status,200);assert.equal(check.body.status,'review');
+ const source={operation:'action',id:serviceId,action:'source',data:{quotes:[{supplier:'Test supplier',amount:1000,quoteFiles:[contract],contractFiles:[contract]}],selectedIndex:0,reason:'Within budget'}};
+ assert.equal((await cmd('Hassan Kassem',structuredClone(source))).status,400);
+ source.data.quotes[0].abnCheckId=check.body.id;
+ assert.equal((await cmd('Hassan Kassem',structuredClone(source))).status,400);
+ source.data.quotes[0].abnReviewNote='Synthetic contract requires manual identity review.';
+ r=await cmd('Hassan Kassem',source);assert.equal(r.status,200);assert.equal(r.body.result.quotes[0].abnCheck.status,'review');
+
  await call('/api/auth/logout',{cookie:sessions.Joe,method:'POST',data:{}});assert.equal((await call('/api/workspace',{cookie:sessions.Joe})).status,401);assert.equal((await call('/api/workspace',{cookie:sessions.Kate})).status,200);
  const stored=await fs.readFile(path.join(dir,'accounts.json'),'utf8');assert.ok(!stored.includes(password));assert.equal(JSON.parse(stored).length,7);assert.ok(JSON.parse(stored).every(a=>a.salt&&a.hash));
  for(let i=0;i<8;i++)assert.equal((await login('unknown','bad')).status,401);assert.equal((await login('unknown','bad')).status,429);
  await new Promise(resolve=>server.close(resolve));server=await createWorkspaceServer({dataDir:dir});server.listen(0,'127.0.0.1');await once(server,'listening');
- const storedState=JSON.parse(await fs.readFile(path.join(dir,'workspace.json'),'utf8'));assert.equal(storedState.state.business.requests.length,2);assert.equal(storedState.state.business.requests[0].stage,'Sourcing');assert.ok(await fs.stat(path.join(dir,'browser-import.json')));
+ const storedState=JSON.parse(await fs.readFile(path.join(dir,'workspace.json'),'utf8'));assert.equal(storedState.state.business.requests.length,2);assert.equal(storedState.state.business.requests[0].stage,'Supplier review');assert.ok(await fs.stat(path.join(dir,'browser-import.json')));
  }finally{if(server?.listening)await new Promise(resolve=>server.close(resolve));await fs.rm(dir,{recursive:true,force:true});}
 });

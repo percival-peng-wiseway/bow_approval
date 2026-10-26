@@ -1,0 +1,5 @@
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+export function abnSummary(check){
+ if(!check)return '<p class="muted">ABN not checked yet.</p>';
+ return `<div class="abn-summary ${check.status==='checked'?'abn-ok':'abn-review'}"><strong>${check.status==='checked'?'ABN checked':'Needs review'}</strong><small>Checked ${esc(new Date(check.checkedAt).toLocaleString('en-AU',{timeZone:'Australia/Melbourne'}))}</small>${check.entries.map(e=>`<div class="abn-entity"><b>${esc(e.entityName||e.abn)}${e.abn===check.selectedAbn?' · Supplier':''}</b><span>ABN ${esc(e.abn)} · ${esc(e.status)} · GST ${e.gstRegistered===null?'not verified':e.gstRegistered?'registered':'not registered'}</span>${e.url?`<a href="${esc(e.url)}" target="_blank" rel="noopener noreferrer">ABN Lookup ↗</a>`:''}</div>`).join('')}${check.warnings.length?`<ul>${check.warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}${check.reviewNote?`<p><b>Applicant’s review note:</b> ${esc(check.reviewNote)}</p>`:''}</div>`;
+}

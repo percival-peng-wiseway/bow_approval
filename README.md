@@ -58,6 +58,23 @@ INVOICE_PYTHON=/path/to/python3 INVOICE_TESSERACT=/path/to/tesseract npm run dev
 
 Manual entry and attachment uploads remain available without OCR. The default OCR paths target the original development computer and may need to be changed on other systems.
 
+## Contract ABN checks
+
+Uploading a supplier contract during service sourcing starts an ABN check. The applicant can also enter or correct the supplier ABN and select **Check ABN**. PDF and image contracts use the existing OCR service; text contracts are read directly. The server queries the official ABN Lookup service for registered/business names, ABN status and GST registration.
+
+A matching active supplier is marked **ABN checked**. Missing identifiers, unreadable documents, unavailable lookups, name mismatches, inactive ABNs and missing GST registration are marked **Needs review**. Findings require an applicant explanation before submission; Finance and the Director see the saved findings and explanation alongside the contract. These are identity checks, not bank-account verification.
+
+Checks are bound to the applicant, request, supplier name and contract file hashes. Changing the supplier or contract requires another check; checks expire for submission after 24 hours. Existing approved requests are preserved.
+
+Configure `ABN_LOOKUP_GUID` as a server-only environment variable locally, or store it in `.local/abn-lookup-guid` with file permissions `0600` (inside `APP_DATA_DIR` if overridden). Set it independently for each Cloudflare environment:
+
+```sh
+npx wrangler secret put ABN_LOOKUP_GUID --env QA
+npx wrangler secret put ABN_LOOKUP_GUID --env prod
+```
+
+Enter the credential at the hidden prompt; never commit it or place it in public assets. Cloud check snapshots are stored in D1 via migration `0002_contract_abn_checks.sql`. Local snapshots are stored privately under `.local/abn-checks/`. A missing credential or provider failure produces **Needs review**, never a simulated success.
+
 ## Tests
 
 ```sh

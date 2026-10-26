@@ -1,3 +1,4 @@
+import {verifyCloudChecks} from './abn.mjs';
 import {initialState} from '../app/domain.mjs';
 import {applyCommand} from '../server/commands.mjs';
 import {normalizeFiles,referencedFileIds,discardFiles} from './files.mjs';
@@ -19,6 +20,7 @@ export async function command(env,actor,input){
  if(input.operation==='import'&&(actor!=='alex'||!before.canImport))fail(actor==='alex'?409:403,'Only the Admin can import into an empty workspace.');
  const created=[];let committed=false;
  try{
+  await verifyCloudChecks(env,actor,input);
   const clean=await normalizeFiles(input,env,actor,created);
   let state=structuredClone(before.state),result,imported=before.imported;
   if(clean.operation==='import'){

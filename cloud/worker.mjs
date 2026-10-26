@@ -2,6 +2,7 @@ import {Container} from '@cloudflare/containers';
 import {authenticated,login,logout,rateLimit} from './auth.mjs';
 import {json,readJson,sameOrigin,fail} from './http.mjs';
 import {readWorkspace,command} from './workspace.mjs';
+import {checkContract} from './abn.mjs';
 import {downloadFile} from './files.mjs';
 export class InvoiceOCR extends Container {defaultPort=8080;sleepAfter='2m';enableInternet=false;}
 async function handle(request,env){
@@ -19,6 +20,7 @@ async function handle(request,env){
    await rateLimit(env,'commands:'+user.id,120,60000);
    try{return json(await command(env,user.id,await readJson(request)));}catch(e){if(!e.status)e.status=400;throw e;}
   }
+  if(p==='/api/contracts/check-abn'&&request.method==='POST'){await rateLimit(env,'abn:'+user.id,12,60000);return json(await checkContract(env,user.id,await readJson(request,5*1024*1024)));}
   const file=/^\/api\/files\/([a-f0-9-]{36})$/.exec(p);
   if(file&&['GET','HEAD'].includes(request.method))return downloadFile(request,env,user,file[1]);
   if(['/api/invoice/scan','/api/invoice/preview'].includes(p)&&request.method==='POST'){

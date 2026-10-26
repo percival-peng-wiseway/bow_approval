@@ -1,3 +1,4 @@
+import {localCheckStore,checkLocalContract,verifySourceChecks} from './server/abn-local.mjs';
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -9,7 +10,8 @@ const root=path.dirname(fileURLToPath(import.meta.url));
 const types={'.html':'text/html; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.json':'application/json','.md':'text/plain; charset=utf-8'};
 const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(data));};
 export async function createWorkspaceServer({dataDir=process.env.APP_DATA_DIR||path.join(root,'.local')}={}){
-const auth=await openAuth(dataDir),workspace=await openWorkspace(dataDir);
+const checks=await localCheckStore(dataDir);
+const auth=await openAuth(dataDir),workspace=await openWorkspace(dataDir,{verifyCommand:(actor,input)=>verifySourceChecks(input,actor,checks)});
 let activeScans=0;
 const readBody=async(req,limit=12*1024*1024)=>{const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>limit)throw Object.assign(new Error('Request is too large.'),{status:413});chunks.push(chunk);}try{return JSON.parse(Buffer.concat(chunks).toString());}catch{throw Object.assign(new Error('Invalid request.'),{status:400});}};
 const server=http.createServer(async(req,res)=>{
@@ -31,6 +33,7 @@ const server=http.createServer(async(req,res)=>{
       if(url.pathname==='/api/workspace/command'&&req.method==='POST'){
         try{return json(res,200,await workspace.command(actor.id,await readBody(req)));}catch(e){return json(res,e.status||400,{error:e.message});}
       }
+      if(url.pathname==='/api/contracts/check-abn'&&req.method==='POST')return json(res,200,await checkLocalContract(workspace,checks,actor.id,await readBody(req,5*1024*1024)));
       if(!['/api/invoice/scan','/api/invoice/preview'].includes(url.pathname))return json(res,404,{error:'Not found.'});
     }
     if(['/api/invoice/scan','/api/invoice/preview'].includes(url.pathname)){
