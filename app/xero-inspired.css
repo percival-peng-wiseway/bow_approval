@@ -1,0 +1,207 @@
+/* BOW OA — Xero-inspired workspace. See docs/XERO_UI_REFERENCE.md.
+   Loaded after the existing component styles; workflow behaviour is unchanged. */
+:root{--ink:#1f2937;--muted:#617180;--line:#dce2e7;--blue:#0969b2;--navy:#155b95;--green:#27823b;--mint:#eaf5ec;--surface:#fff;--canvas:#f3f5f7;font-family:Arial,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:17px;color:var(--ink);background:var(--canvas)}
+body{background:var(--canvas);color:var(--ink)}
+button,input,select,textarea{font-family:inherit;font-size:16px;line-height:1.4;border-radius:4px}
+button{min-height:38px;padding:8px 14px;border-color:#bdcbd5;font-weight:600;box-shadow:none;color:#225e87;background:#fff}
+button:hover{border-color:#91a8b8;background:#f0f7fc}
+button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #7fbeec;outline-offset:2px}
+button.primary{background:var(--green);color:#fff;border-color:var(--green)}
+button.primary:hover{background:#1d692e;border-color:#1d692e}
+button.text-btn,button.oa-request-link,button.workspace-request-link{color:var(--blue);background:none;border:0;box-shadow:none}
+a{color:var(--blue)}
+input,select,textarea{border:1px solid #b7c6d1;padding:9px 11px;color:var(--ink);background:#fff}
+input:focus,textarea:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 2px #0969b21c}
+input[type=checkbox]{accent-color:var(--blue)}
+input::placeholder,textarea::placeholder{color:#73818d}
+button.danger{color:#b0272c;border-color:#d9adb1}
+button.danger:hover{background:#fff0f1}
+h1,h2,h3,h4{color:var(--ink)}
+.muted,.caption,.info{color:var(--muted)}
+.brand{color:var(--ink);font-size:23px;letter-spacing:-.4px}.brand .bow-logo{width:32px;height:38px;object-fit:contain}
+.sidebar{background:#fff;border-right-color:var(--line)}
+.nav{border-radius:4px;font-size:16px;color:#364858;min-height:42px}.nav.active{background:#e7f2fb;color:#075c9c}.nav.active .icon,.nav.active .count{color:#075c9c}.nav .icon{color:#6c8497}
+.topbar{background:#fff;min-height:62px;height:62px;border-color:var(--line)}
+.top-actions button{font-size:14px}.actor strong{font-size:16px}.actor small{font-size:12px;color:var(--muted)}
+.avatar,.person-initials{background:#edf2f5;color:#4a6478;border:0;font-weight:600}
+.person-name{color:#344553;font-weight:400}.person-initials{width:28px;height:28px;min-width:28px;font-size:11px}
+.admin-delegate-button{border-color:#c0cfdb;background:#f6f9fb;color:#245a7d}
+/* Desktop navigation uses one horizontal bar, with BOW branding retained. */
+@media(min-width:1200px){
+ .layout{display:flex;flex-direction:column;position:relative}
+ .sidebar{height:64px;min-height:64px;flex-direction:row;align-items:stretch;padding:0 380px 0 20px;gap:3px;overflow:visible;background:#155b95;border:0}
+ .sidebar .brand{padding:0 22px 0 0;margin:0 10px 0 0;color:white;min-width:156px;font-size:22px}
+ .sidebar .nav{width:auto;margin:0;padding:0 12px;min-height:64px;color:#fff;border-radius:0;font-size:15px;gap:0}
+ .sidebar .nav .icon{display:none}.sidebar .nav:hover{background:#ffffff12;border:0}.sidebar .nav.active{background:#0c4879;color:white;box-shadow:inset 0 -3px #8acafa}
+ .sidebar .side-bottom{margin:0;padding:0;display:flex}.sidebar .mobile-menu{display:none}
+ .main{flex:1;min-height:0}.topbar{position:absolute;right:16px;top:0;min-height:64px;height:64px;background:transparent;border:0;padding:0;z-index:5}
+ .top-actions{gap:10px}.topbar .actor{border-left-color:#ffffff35;margin:0;padding-left:12px;color:white}.topbar .actor small{color:#d0e5f5}.topbar .actor .avatar{background:#e9f1f7;color:#28516e}
+ .topbar .sign-out{min-height:32px;padding:6px 10px;color:white;background:transparent;border-color:#ffffff50}
+ .topbar .admin-delegate-button{font-size:13px;padding:7px 10px;min-height:32px;background:#ffffff12;color:white;border-color:#ffffff50}
+ .topbar .mobile-top-menu{display:none}
+}
+@media(min-width:1200px) and (max-width:1370px){.sidebar{padding-right:315px}.sidebar .brand{min-width:136px;font-size:20px;padding-right:12px;margin-right:0}.sidebar .nav{padding:0 9px;font-size:14px}.topbar .actor small{display:none}.topbar .actor .avatar{display:none}.topbar .actor{gap:8px}.topbar .actor strong{font-size:14px}.topbar{right:12px}.top-actions{gap:6px}}
+/* Consistent workspace headings, sections and restrained surfaces. */
+.page,.business-page,.supplier-page{padding:26px 32px 40px;width:100%;max-width:none;background:var(--canvas)}
+.business-heading,.request-home-heading,.page-title{margin:0 0 22px;min-height:42px;align-items:center;gap:16px}
+.business-heading h1,.oa-ledger-page .business-heading h1,.request-home-heading h1,.page-title h1,.supplier-page .business-heading h1{font-size:28px;line-height:1.25;letter-spacing:-.4px;font-weight:600;margin:0}
+.project-count{font-size:16px;color:#637585;font-weight:400;margin-left:8px}
+.business-heading button,.project-header-actions button,.workspace-page .project-header-actions button{font-size:15px;min-height:40px;padding:9px 16px}
+.project-back{color:var(--blue);font-size:14px;margin:0 0 10px;padding:0;min-height:24px}
+.panel,.workspace-panel,.home-section,.portal-pending,.review-summary,.review-changes,.contract-ai-report{border-radius:4px;border-color:var(--line);box-shadow:none;background:white}
+.panel,.workspace-panel{padding:22px}.workspace-panel h2,.home-section h2,.register-section h2{font-size:19px;font-weight:600}
+.workspace-panel p{color:#546574;line-height:1.55}
+.workspace-tabs,.home-task-tabs,.business-tabs,.portal-filters{display:flex;gap:26px;align-items:stretch;border-bottom:1px solid #cdd7df;margin:0 0 18px;background:transparent;overflow-x:auto}
+.workspace-tabs button,.home-task-tabs button,.business-tabs button,.portal-filters button{display:flex;align-items:center;justify-content:flex-start;gap:8px;white-space:nowrap;min-height:46px;padding:12px 0;border:0;border-bottom:3px solid transparent;border-radius:0;background:transparent;color:#526575;font-size:16px;font-weight:500;box-shadow:none}
+.workspace-tabs button[aria-pressed=true],.home-task-tabs button[aria-pressed=true],.business-tabs button.active,.portal-filters button.active{border-bottom-color:var(--blue);color:var(--blue);background:transparent;box-shadow:none}
+.workspace-tabs button span,.home-task-tabs button strong{font-size:13px;font-weight:600;border-radius:3px;background:#e9eef3;padding:2px 6px;color:#455d70}
+.workspace-tabs button:hover,.home-task-tabs button:hover,.business-tabs button:hover,.portal-filters button:hover{color:var(--blue);background:transparent}
+.home-section{padding:0;margin:0 0 24px;overflow:hidden}.home-section>h2{padding:18px 20px;margin:0;border-bottom:1px solid var(--line)}.home-section .xero-table-wrap{border:0;border-radius:0}.home-section .oa-panel-empty{padding:40px 24px}.home-task-tabs{display:flex;margin-bottom:20px}.home-task-tabs button strong{margin-left:2px}
+/* Search/filter strips match the register rather than appearing as separate cards. */
+.register-toolbar,.request-filter-bar,.supplier-filters{padding:16px 18px;margin:0;background:#fff;border:1px solid var(--line);border-radius:4px 4px 0 0;display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
+.request-filter-bar{display:block}.request-filter-controls{gap:12px;align-items:flex-end}.request-search-field{flex:1;min-width:180px}
+.register-search{display:flex;flex-direction:column;gap:6px;flex:1;max-width:560px;font-size:14px;font-weight:600;color:#526575}.register-search input{width:100%}.register-count{margin-left:auto;font-size:14px;color:#607380;padding-bottom:10px}
+.request-filter-field{border:0;background:none;padding:0;display:flex;flex-direction:column;align-items:stretch;gap:5px;flex:0 1 200px;max-width:240px}
+.request-filter-field>span{font-size:13px;font-weight:600;color:#526575}.request-filter-field select{border:1px solid #b7c6d1;max-width:none;min-height:40px;padding:8px 28px 8px 10px;width:100%;font-size:15px;background:white}
+.request-search-field input{min-height:40px;font-size:16px}.request-filter-toggle{min-height:40px;padding:8px 14px;font-size:15px}
+.request-filter-chips{padding-top:12px}.request-filter-chips button{background:#edf4fa;color:#275c83;border:1px solid #d6e5f2;font-size:13px;min-height:28px}.request-filter-chips .clear-all-filters{background:none;border:0;color:var(--blue)}
+.oa-totals,.workspace-page .oa-totals,.supplier-totals{display:flex;align-items:center;gap:24px;padding:12px 18px;margin:0;border:1px solid var(--line);border-top:0;border-radius:0;background:#fff;box-shadow:none}
+.oa-totals>div,.workspace-page .oa-totals>div,.supplier-totals>div{display:flex;align-items:baseline;gap:8px;padding:0;border:0;flex:0 1 auto}
+.oa-totals span,.workspace-page .oa-totals span,.supplier-totals span{font-size:13px;color:#657887}.oa-totals strong,.workspace-page .oa-totals strong,.supplier-totals strong{font-size:16px;font-weight:600;color:#263d50}
+/* One register language for requests, projects, customers and suppliers. */
+.xero-table-wrap,.oa-table-wrap,.supplier-table-wrap{border:1px solid var(--line);border-radius:4px;background:white;overflow:auto}
+.register-toolbar+.xero-table-wrap,.oa-workspace .oa-table-wrap{border-radius:0 0 4px 4px}
+.xero-table,.oa-ledger,.supplier-table{width:100%;border-collapse:collapse;font-size:16px;color:#283e50;text-align:left}
+.xero-table th,.oa-ledger th,.workspace-page .oa-ledger th,.supplier-table th{padding:12px 18px;background:#f8fafb;color:#526675;font-size:14px;line-height:1.4;font-weight:600;border-top:0;border-bottom:1px solid #d8e1e8;white-space:nowrap}
+.xero-table td,.oa-ledger td,.workspace-page .oa-ledger td,.supplier-table td{padding:15px 18px;border-bottom:1px solid #e5ebef;font-size:16px;color:#283e50;vertical-align:middle;line-height:1.45}
+.xero-table tbody tr:last-child td,.oa-ledger tbody tr:last-child td,.supplier-table tbody tr:last-child td{border-bottom:0}
+.xero-table tbody tr:hover,.oa-ledger tbody tr:hover,.supplier-table tbody tr:hover{background:#f4f9fd}
+.xero-table .num,.xero-table th.num,.supplier-table .supplier-money{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.supplier-table.xero-table th,.supplier-table.xero-table td{text-align:left}.supplier-table.xero-table .supplier-money{text-align:right}
+.oa-request-link,.workspace-page .oa-request-link,.supplier-name strong,.portal-project-link{font-size:16px;font-weight:600;line-height:1.45;color:var(--blue);text-align:left;text-decoration:none;padding:0;min-height:24px;border:0;background:none;white-space:normal}
+.oa-request-link:hover,.portal-project-link:hover{color:#064777;text-decoration:underline;background:transparent}
+.table-secondary,.oa-request-context,.workspace-page .oa-request-context{display:block;font-size:13px;color:#6e7f8d;font-weight:400;margin-top:4px;line-height:1.45}
+.xero-table td:first-child{min-width:160px}.xero-table .row-action{text-align:right;white-space:nowrap}.row-action .text-btn{min-height:32px;font-size:14px;padding:4px}
+.oa-next,.home-assignees{display:flex;flex-wrap:wrap;gap:8px 12px;margin-top:7px}.oa-ledger .person-name,.workspace-page .oa-next .person-name,.home-assignees .person-name{font-size:14px}
+.oa-ledger .oa-money strong,.workspace-page .oa-ledger .oa-money strong{font-size:17px;color:#263d50}.oa-open button{color:var(--blue);background:none;border:0;min-height:32px;font-size:20px}
+.register-status{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:#647585;white-space:nowrap}.register-status:before{content:'';width:6px;height:6px;background:#a6b4bf;border-radius:50%}.register-status.is-active{color:#256f39}.register-status.is-active:before{background:#3b9451}
+.oa-stage,.request-status,.badge,.supplier-badge{border-radius:3px;padding:4px 8px;font-size:13px;font-weight:600;line-height:1.35;white-space:normal;width:fit-content}
+.customer-account-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.customer-account-actions>button{font-size:14px;min-height:32px;padding:6px 10px}.customer-account-actions .business-more summary{font-size:14px;min-height:32px;padding:6px 10px}
+.customers-register .xero-table-wrap{overflow:visible}.customers-register .customer-mail-warning{margin:0 0 18px;padding:12px 16px;font-size:14px;border-radius:4px}.register-section{background:#fff;border:1px solid var(--line);border-radius:4px;padding:20px;margin-top:24px}.register-section>h2{margin:0 0 14px}
+.supplier-avatar{width:32px;height:32px;min-width:32px;font-size:12px;background:#edf3f7;color:#4b6b81;border-radius:4px}.supplier-name{min-height:32px}.supplier-name small{font-size:13px}.supplier-subtitle{font-size:14px;margin:7px 0 0}.supplier-totals{border-top:1px solid var(--line);border-radius:4px;margin-bottom:18px}.supplier-filters select{min-width:180px;min-height:40px;font-size:15px}.supplier-filters input{font-size:16px}.supplier-register-panel{padding:0;overflow:hidden}
+/* Full-page detail: title and amount, ownership, actions, then content tabs. */
+.oa-workspace,.business-workspace{border-radius:4px;border-color:var(--line);box-shadow:none}.oa-detail-back{border-color:var(--line)}
+.workspace-page .oa-detail-back{padding:10px 22px;min-height:40px;background:#fbfcfd}.oa-detail-back>span{font-size:12px;color:#6c7e8c}
+.workspace-page .oa-workspace .business-detail-head{padding:22px 24px 16px;gap:24px}.workspace-page .oa-workspace .business-detail-head h2{font-size:26px;font-weight:600;margin:10px 0 0;color:#20384b;line-height:1.35}
+.workspace-page .request-total strong{font-size:28px;font-weight:600;color:#20384b}.workspace-page .request-total>span{font-size:13px;color:#687c8c}
+.request-summary-meta{padding:0 24px 20px;gap:16px 28px}.workspace-page .request-summary-meta .request-ownership{gap:28px}.workspace-page .request-summary-meta .request-ownership dt{font-size:13px;color:#657889}.workspace-page .request-summary-meta .request-ownership dd{font-size:16px}
+.workspace-page .request-summary-meta .customer-confirmation-summary summary{font-size:14px;color:#406577}.workspace-page .request-summary-meta .gate-progress{border-top:1px solid #e8edf1;padding-top:12px;font-size:14px}
+.workspace-page .oa-workspace .request-detail-toolbar{padding:0 24px;background:#fafcfd;border-top:1px solid var(--line);border-bottom:1px solid var(--line);box-shadow:none}
+.workspace-page .oa-workspace .request-detail-toolbar .business-tabs{gap:24px;margin:0}.business-tabs button.active{border-bottom-color:var(--blue);color:var(--blue)}
+.workspace-page .oa-detail-body{grid-template-columns:minmax(0,1fr) 280px;align-items:stretch}.workspace-page .oa-detail-body>.business-content{font-size:16px;padding:24px;line-height:1.55;overflow:visible}
+.workspace-page .oa-workspace .overview-row{padding:14px 0;grid-template-columns:minmax(150px,25%) minmax(0,1fr);gap:24px;border-color:#e5ebef}.workspace-page .oa-workspace .overview-row dt{font-size:14px;color:#627788}.workspace-page .oa-workspace .overview-row dd{font-size:16px;color:#243b4c}
+.workspace-page .oa-approval-record{background:#fafcfd;border-color:var(--line);padding:0 20px;overflow:visible;max-height:none}.approval-record-heading{border-color:var(--line)}.workspace-page .approval-record-heading h3{font-size:16px;color:#344e61}.workspace-page .oa-approval-record li>strong{font-size:14px}.workspace-page .oa-approval-record p{font-size:13px;color:#627788}.workspace-page .oa-approval-record time{font-size:12px;color:#718696}.workspace-page .oa-approval-record ol{overflow:visible;max-height:none}
+.review-summary>h3,.review-changes>header{font-size:16px;background:#f6f9fb;padding:14px 18px}.contract-ai-report>summary{font-size:17px;color:#315a78}.contract-ai-report p{font-size:16px}.contract-ai-report small{font-size:13px}.contract-supplier{background:#f4f8fb;border-radius:4px}.contract-finding{border-color:#e0e8ee}
+.business-content h3,.service-contract-summary>h3{font-size:19px}.business-content h4{font-size:16px}.business-content p{line-height:1.6}
+.request-danger-button{background:#bc343b;border-color:#bc343b;color:white;border-radius:4px}.request-danger-button:hover{background:#9c242b;border-color:#9c242b}.request-danger-actions{border-top:1px solid var(--line)}
+.business-more summary{font-size:15px;color:var(--blue);min-height:38px;border-radius:4px}.business-more>div{border-color:#cdd9e2;box-shadow:0 4px 14px #183a571c;border-radius:4px;z-index:25}.business-more>div button{justify-content:flex-start;font-size:14px;color:#2e4c62;white-space:nowrap}
+/* Forms and settings use the same sizes and button hierarchy. */
+.modal{border-radius:6px;box-shadow:0 16px 50px #142b4540;width:760px}.modal-backdrop{backdrop-filter:none;background:#16324a66}
+.modal>header{padding:18px 24px;background:#fff;border-color:var(--line)}.modal h2{font-size:23px;font-weight:600;letter-spacing:-.3px}.modal-body{padding:24px}.modal>footer{background:#f8fafb;padding:16px 24px;border-color:var(--line)}.modal>footer button{font-size:15px;min-height:40px}
+.field,.business-form .field{font-size:14px;font-weight:600;color:#526575;line-height:1.5}.field input,.field select,.field textarea{font-size:16px;font-weight:400;margin-top:6px;min-height:40px}.business-form{gap:20px}.business-form .muted{font-size:14px}.form-project-name{font-size:16px;font-weight:600;color:#245b82;border-color:var(--line);margin:0 0 20px;padding:0 0 14px}
+.request-choices{gap:14px}.request-choice{min-height:140px;padding:24px;border-radius:4px;border:1px solid #c8d6e1;text-align:left;align-items:flex-start;background:white}.request-choice:hover{background:#f4faff;border-color:#5b9ccc}.request-choice strong{font-size:21px;color:#1f4e70}.request-choice span{font-size:15px;color:#5e7486}.choice-symbol{color:#4784ae}
+.settings-page>.panel,.notification-settings,.ai-settings-panel,.admin-audit{padding:22px;border-radius:4px}.settings-page h2{font-size:21px}.settings-page h3{font-size:18px}.settings-page .info,.settings-page p{font-size:15px}.settings-actions button{font-size:15px}
+.workflow-card,.flow-node{border-radius:5px}.flow-type button.active{background:#e9f3fb;color:var(--blue);border-color:#b8d6ec}
+/* Customer workspace shares registers and form language. */
+.customer-portal{max-width:1480px;margin:0 auto;padding:28px 32px;background:var(--canvas)}
+.portal-header{padding:0 0 20px;margin:0 0 24px;border-color:#ccd9e3}.portal-header strong{font-size:22px}.portal-brand{color:#224e70;font-size:22px}.portal-eyebrow{font-size:13px;color:#607b8d}
+.portal-project-list{margin-top:20px}.portal-project-table td{padding:18px}.portal-project-link{color:var(--blue)}.portal-filters button{font-size:15px}.portal-service-list{border-radius:4px;border-color:var(--line)}.portal-list-head{background:#f8fafb;font-size:14px;color:#526675;padding:12px 20px}.portal-service-row{min-height:68px;padding:15px 20px;font-size:16px;gap:18px}.portal-row-title{font-size:16px;color:var(--blue);font-weight:600}.portal-row-progress{font-size:14px;color:#617989}.portal-row-amount{font-size:16px;font-variant-numeric:tabular-nums}.portal-row-chevron{color:var(--blue);font-size:20px}
+.portal-service-list .portal-detail{padding:22px 24px;background:#fcfdfe}.portal-budget{background:#f0f5f9;border-radius:4px;font-size:15px}.portal-budget dd{font-size:22px}.portal-facts{margin:20px 0}.portal-facts>div{display:grid;grid-template-columns:180px minmax(0,1fr);gap:20px;padding:16px 0;border-bottom:1px solid var(--line)}.portal-facts dt{font-size:14px;color:#607789}.portal-facts dd{font-size:16px;margin:0;white-space:pre-wrap;line-height:1.6;overflow-wrap:anywhere}.portal-detail h3{font-size:19px}.portal-completion,.portal-decision-record,.portal-contracts{border-radius:4px;font-size:16px}.portal-pending{padding:20px}.portal-pending h2{font-size:20px}
+/* Narrow screens retain readable rows and accessible touch targets. */
+@media(max-width:1199px) and (min-width:761px){.layout{grid-template-columns:190px minmax(0,1fr)}.sidebar{padding:20px 10px}.brand{font-size:21px;padding:0 4px}.nav{font-size:15px}.page,.business-page,.supplier-page{padding:24px}.xero-table-wrap{overflow-x:auto}.projects-table{min-width:820px}.customers-table{min-width:760px}.workspace-page .oa-detail-body{grid-template-columns:minmax(0,1fr)}.oa-approval-record{border-left:0;border-top:1px solid var(--line)}}
+@media(max-width:760px){
+ .page,.business-page,.supplier-page,.customer-portal{padding:20px 16px 30px}.topbar{padding:10px 16px;height:auto;min-height:64px}.top-actions{gap:6px}.topbar .actor{padding-left:8px}.topbar .actor small{font-size:11px}.topbar .actor strong{font-size:14px}.topbar .sign-out{font-size:13px;padding:6px 8px}.topbar .admin-delegate-button{font-size:12px;padding:6px 8px}
+ .business-heading,.request-home-heading,.page-title{align-items:flex-start;flex-wrap:wrap;margin-bottom:18px}.business-heading h1,.oa-ledger-page .business-heading h1,.request-home-heading h1,.page-title h1,.supplier-page .business-heading h1{font-size:26px}.business-heading button,.project-header-actions button,.workspace-page .project-header-actions button{font-size:14px;min-height:42px;padding:9px 12px}.project-header-actions{gap:8px;flex-wrap:wrap}
+ .workspace-tabs,.home-task-tabs,.business-tabs,.portal-filters{gap:22px;margin-bottom:16px}.workspace-tabs button,.home-task-tabs button,.business-tabs button{font-size:15px;min-height:44px}
+ .register-toolbar,.request-filter-bar,.supplier-filters{padding:14px}.register-search{max-width:none;flex-basis:100%}.register-count{padding:0;margin:0}.request-filter-controls{flex-wrap:wrap;gap:10px}.request-search-field{flex-basis:100%}.request-filter-field{flex:1 1 130px;max-width:none}.request-filter-field select{font-size:16px;min-height:42px}.request-filter-toggle{min-height:42px;font-size:14px}
+ .oa-totals,.workspace-page .oa-totals,.supplier-totals{gap:16px;flex-wrap:wrap;padding:12px 14px}.oa-totals>div,.workspace-page .oa-totals>div{padding:0}.oa-totals span,.workspace-page .oa-totals span{font-size:12px}.oa-totals strong,.workspace-page .oa-totals strong{font-size:16px}
+ .xero-table-wrap,.supplier-table-wrap{overflow:visible}.xero-table,.xero-table tbody{display:block}.xero-table thead{display:none}.xero-table tr{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;padding:18px 16px;border-bottom:1px solid var(--line)}.xero-table tr:last-child{border-bottom:0}.xero-table td,.supplier-table.xero-table td{display:block;min-width:0!important;padding:0!important;border:0!important;text-align:left!important;font-size:15px;white-space:normal}.xero-table td:first-child{grid-column:1/-1}.xero-table td[data-label]:before{content:attr(data-label);display:block;color:#688091;font-size:12px;font-weight:400;margin-bottom:5px}.xero-table td:first-child:before{display:none}.xero-table .row-action{grid-column:1/-1;text-align:right!important}.xero-table .row-action button{min-height:38px}.xero-table td:has(.customer-account-actions){grid-column:1/-1}.customer-account-actions button{min-height:40px}.customer-account-actions .business-more summary{min-height:40px;padding-top:9px}.customers-register .business-more>div{right:0}
+ .workspace-page .oa-ledger tr{padding:18px 16px;gap:12px 16px}.workspace-page .oa-ledger td{padding:0;font-size:15px}.workspace-page .oa-request-link{font-size:17px}.oa-ledger td[data-label]:before{font-size:12px;color:#6c8191}.oa-next{gap:8px}.workspace-page .oa-next .person-name{font-size:14px}
+ .workspace-page .oa-workspace .business-detail-head{padding:18px;flex-direction:column;gap:16px}.workspace-page .oa-workspace .business-detail-head h2{font-size:23px}.workspace-page .request-total{align-items:flex-start;text-align:left}.workspace-page .request-total strong{font-size:25px}.request-summary-meta{padding:0 18px 18px;gap:16px}.workspace-page .request-summary-meta .request-ownership{width:100%;gap:20px}.workspace-page .oa-workspace .request-summary-meta .request-action-bar{margin:0;flex-basis:100%}.request-header-actions>button{min-height:42px;font-size:14px}
+ .workspace-page .oa-workspace .request-detail-toolbar{padding:0 18px}.workspace-page .oa-workspace .request-detail-toolbar .business-tabs{gap:22px}.workspace-page .oa-detail-body{grid-template-columns:minmax(0,1fr)}.workspace-page .oa-detail-body>.business-content{padding:18px}.workspace-page .oa-workspace .overview-row{grid-template-columns:1fr;gap:6px;padding:14px 0}.workspace-page .oa-workspace .overview-row dd{font-size:16px}.workspace-page .oa-approval-record{border-top:1px solid var(--line);border-left:0;padding:0 18px}.workspace-page .oa-approval-record p{font-size:14px}.workspace-page .oa-detail-back{padding:8px 18px}.workspace-page .oa-detail-back>span{display:none}
+ .modal-backdrop{padding:12px}.modal{max-height:calc(100dvh - 24px);border-radius:5px}.modal>header{padding:16px 18px}.modal h2{font-size:22px}.modal-body{padding:18px}.modal>footer{padding:14px 18px;gap:8px;flex-wrap:wrap}.modal>footer button{min-height:42px;font-size:14px}.request-choice{min-height:110px;padding:20px}.request-choice strong{font-size:20px}.request-choice span{font-size:14px}.field input,.field select,.field textarea{font-size:16px}
+ .portal-header{flex-wrap:wrap;gap:12px}.portal-list-head{display:none}.portal-service-row{padding:16px;gap:10px 14px}.portal-service-list .portal-detail{padding:18px}.portal-facts>div{grid-template-columns:1fr;gap:6px}.portal-budget{flex-wrap:wrap;gap:8px}.portal-budget dd{font-size:22px}.portal-row-title{font-size:17px}.portal-row-status .request-status{font-size:12px}.register-section{padding:18px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
+.filter-search-label{display:block;font-size:13px;font-weight:600;color:#526575;margin-bottom:5px}
+.oa-totals>div,.workspace-page .oa-totals>div,.supplier-totals>div{flex-direction:row}
+.oa-totals.request-totals{min-height:46px}.oa-next{margin-top:5px}
+.request-filter-field{flex-basis:170px}.request-filter-field select{max-width:100%}
+.customer-portal .project-kind-tabs{display:flex;gap:24px;border-bottom:1px solid #cdd7df;margin:18px 0;overflow-x:auto}
+.customer-portal .project-kind-tabs button{border:0;border-bottom:3px solid transparent;background:none;border-radius:0;color:#526575;padding:12px 0;font-size:15px;white-space:nowrap}
+.customer-portal .project-kind-tabs button[aria-pressed=true]{color:var(--blue);border-bottom-color:var(--blue);background:none}
+.login-page{background:#edf2f6}.login-card{border-radius:6px;border:1px solid #d4dfe7;box-shadow:0 8px 30px #193a5310;border-top:4px solid var(--navy)}.login-brand{color:#234c6b}.login-card h1{font-size:28px}.login-card>p{color:#667b8d;font-size:16px}.login-versions button[aria-pressed=true]{color:var(--blue);border-color:var(--blue);background:#eef6fc}.login-versions button{font-size:15px;border-radius:4px}.login-card .field{font-size:14px}.login-password button{font-size:14px}
+@media(max-width:760px){.request-filter-field{flex-basis:130px}.login-card{padding:24px}.login-card .login-brand{font-size:24px}}
+.xero-table .amount-column{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.quote-comparison-table .selected-quote{background:#f2f8ed}.quote-comparison-table .selected-quote:hover{background:#ebf4e4}
+.quote-document-details>summary,.payment-evidence>summary{cursor:pointer;color:var(--blue);font-size:14px;padding:6px 0;min-height:32px}.quote-document-content{min-width:220px;padding-top:12px}.quote-document-content .business-file{display:block;font-size:14px;max-width:400px;overflow-wrap:anywhere}.quote-document-content h4{font-size:14px;margin:12px 0 6px}
+.quote-selection-reason{padding:18px;background:#fafcfd;border:1px solid var(--line);border-radius:4px;margin-top:18px}.quote-selection-reason h4{margin:0 0 8px}.quote-selection-reason p{margin:0}
+.payment-schedule-table .payment-evidence-row td{padding:0 18px 10px;background:#fafcfd}.payment-evidence-content{padding:8px 0 12px}.payment-evidence-content .payment-checklist{margin:8px 0 16px;font-size:14px}.request-facts{margin:0}.request-facts>div{display:grid;grid-template-columns:150px minmax(0,1fr);gap:18px;padding:12px 0;border-bottom:1px solid var(--line)}.request-facts dt{font-size:14px;color:#627889}.request-facts dd{margin:0;font-size:15px;overflow-wrap:anywhere}.payment-evidence-content .business-file{font-size:14px}
+.supplier-register-panel>h2,.supplier-register-panel>.supplier-footnote,.supplier-register-panel>.supplier-empty-inline,.supplier-register-panel>p{margin:18px 20px}.supplier-register-panel .xero-table-wrap{border:0;border-radius:0}
+@media(max-width:760px){.xero-table .payment-evidence-row{display:block;padding:0 16px 12px;background:#fafcfd}.xero-table .payment-evidence-row>td{display:block;width:100%;padding:0!important}.xero-table .payment-evidence-row td:before{display:none}.quote-document-content{min-width:0}.quote-document-content .business-file{max-width:100%}.request-facts>div{grid-template-columns:1fr;gap:6px}.quote-comparison-table td:has(.quote-document-details){grid-column:1/-1}.home-task-table td:nth-child(2){grid-column:1/-1}}
+.request-facts{display:block}.request-facts dd{text-align:left}.request-facts>div{width:100%}
+.business-file,.supplier-page .business-file,.portal-detail .business-file{color:var(--blue)}
+.oa-payment-totals{gap:24px;padding:14px 0;margin-bottom:20px}.oa-payment-totals>div{padding:0}.oa-payment-totals strong{font-size:23px;color:#263d50}.oa-payment-totals span{font-size:14px;color:#627889}
+
+/* Supplier proposals keep scope readable in the comparison list. */
+.proposal-scope{white-space:pre-wrap;min-width:180px;max-width:380px;overflow-wrap:anywhere}
+@media(max-width:760px){.proposal-scope{min-width:0;max-width:none}}
+
+/* Contract preparation: upload, verify, then submit. */
+.modal:has(#contract-form){width:900px}
+#contract-form{display:flex;flex-direction:column;gap:0}
+#contract-form .contract-supplier{margin:0;padding:0 0 18px;background:none;border-radius:0;align-items:center;border-bottom:1px solid var(--line)}
+#contract-form .contract-supplier strong{font-size:20px}#contract-form .contract-supplier span{font-size:15px}
+.contract-section{padding:22px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:16px}
+.contract-section:last-child{border-bottom:0;padding-bottom:0}.contract-section h3{font-size:18px;margin:0;color:#283e50;font-weight:600}
+#contract-form .field{font-size:15px;margin:0;gap:8px}#contract-form .field input,#contract-form .field textarea{font-size:17px}#contract-form textarea{resize:vertical;min-height:76px}
+.contract-drop{border:1px dashed #a8becd;border-radius:4px;padding:22px;display:grid;grid-template-columns:1fr auto;gap:8px 18px;align-items:center;background:#fbfcfd}
+.contract-drop strong{font-size:17px}.contract-drop>span{font-size:14px;color:#647782;grid-column:1}.contract-drop>button{grid-column:2;grid-row:1/3}
+.contract-drop.has-files{padding:12px 16px}.contract-drop.has-files>strong{font-size:15px}.contract-drop.has-files>span{display:none}.contract-drop.drag-over{background:#eaf4fb;border-color:#0969b2}
+#contract-retained:empty,#contract-abn-result:empty,#contract-analysis:empty{display:none}
+.contract-file-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid var(--line)}.contract-file-row:last-child{border-bottom:0}
+.contract-file-row>div:first-child{min-width:0;display:flex;flex-direction:column;gap:4px}.contract-file-row strong{font-size:16px;font-weight:550;overflow-wrap:anywhere}.contract-file-row span{font-size:14px;color:#647782}
+.contract-file-actions{display:flex;gap:6px;flex-shrink:0}.contract-file-actions button{border:0;padding:7px 8px;min-height:36px;font-size:14px;background:none}.contract-file-actions button[data-remove-contract]{color:#9b3b3b}
+.contract-extract{display:flex;align-items:center;gap:14px;flex-wrap:wrap}.contract-extract>span{flex:1;min-width:180px;font-size:14px;line-height:1.5;color:#647782}.contract-extract button{white-space:nowrap}
+.contract-origin{font-size:12px;font-weight:500;background:#e9f2fa;color:#24628c;padding:3px 6px;border-radius:3px;margin-left:4px}.contract-origin[hidden]{display:none}
+.contract-abn-field{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}.contract-abn-field>button{height:44px;padding:8px 12px;font-size:14px}
+#contract-form .form-grid{gap:20px}#contract-form .abn-summary{margin:0;border-radius:4px}#contract-form .abn-heading{padding:12px 16px}#contract-form .abn-facts{padding:0 16px}#contract-form .abn-facts>div{padding:10px 0;font-size:15px}
+#contract-form .contract-ai-report{margin:0;padding:14px 16px}#contract-form .contract-ai-report>summary{font-size:16px}#contract-form .contract-optional{font-weight:400;color:#647782;font-size:14px}
+#contract-preview{border:1px solid var(--line);border-radius:4px;overflow:hidden}#contract-preview[hidden]{display:none}#contract-preview>div{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:#f6f9fb}#contract-preview strong{font-size:15px;overflow-wrap:anywhere}#contract-preview button{font-size:14px;flex-shrink:0}#contract-preview img{max-width:100%;display:block;margin:auto;max-height:440px;object-fit:contain}#contract-preview iframe{display:block;width:100%;height:420px;border:0}#contract-preview pre{white-space:pre-wrap;overflow-wrap:anywhere;font:15px/1.6 inherit;padding:16px;margin:0;max-height:380px;overflow:auto}
+@media(max-width:760px){
+ #contract-form .contract-supplier{align-items:flex-start;gap:6px}#contract-form .contract-supplier span{font-size:14px}.contract-section{padding:18px 0;gap:14px}.contract-file-row{flex-direction:column;align-items:stretch;gap:8px}.contract-file-actions{justify-content:flex-start}.contract-file-actions button{min-height:42px}.contract-drop{padding:16px;grid-template-columns:1fr}.contract-drop>button{grid-column:1;grid-row:auto;justify-self:start}.contract-drop.has-files{grid-template-columns:1fr auto}.contract-drop.has-files>button{grid-column:2;grid-row:1}.contract-drop.has-files>strong{font-size:14px}.contract-extract{gap:10px}.contract-extract>button{width:100%}.contract-extract>span{font-size:13px}#contract-form .form-grid{grid-template-columns:1fr;gap:16px}.contract-abn-field>button{font-size:14px;padding:8px}.modal:has(#contract-form)>footer{display:grid;grid-template-columns:auto 1fr 1.4fr;padding:12px;gap:6px}.modal:has(#contract-form)>footer button{font-size:13px;padding:9px 7px;white-space:nowrap}#contract-preview>div{flex-wrap:wrap}
+}
+
+#final-supplier-form{display:flex;flex-direction:column;gap:20px}
+#final-supplier-form [hidden]{display:none}
+.final-supplier-summary{border:1px solid var(--line);border-radius:4px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.final-supplier-summary strong{font-size:18px}.final-supplier-summary span{color:#536d7e}.final-supplier-summary p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+#contract-form .contract-final-supplier{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+#contract-form .contract-final-supplier>span{font-size:14px}#contract-form .contract-final-supplier>button{font-size:14px;padding:6px 10px;min-height:34px}
+
+/* Service v2 controls share the existing restrained status palette. */
+.oa-stage[data-approval-status="Contract signing"],
+.oa-stage[data-approval-status="Variation signing"],
+.oa-stage[data-approval-status="Completion evidence"] { background:#fff3db; color:#825509; }
+.oa-stage[data-approval-status="Variation review"],
+.oa-stage[data-approval-status="Completion sign-off"] { background:#eee8fb; color:#68449a; }
+.oa-stage[data-approval-status="PM delivery review"],
+.oa-stage[data-approval-status="Completion review"],
+.oa-stage[data-approval-status="PM verification"] { background:#e5eff9; color:#245d85; }
+.service-cost-summary { margin-bottom:20px; }
+.service-cost-summary .overview-list { margin:0; }
+.service-control-summary .overview-list { display:block; margin:0 0 20px; padding:0; border:0; }
+.service-control-summary .overview-row dd { text-align:left; }
+.service-control-summary .overview-row { padding:14px 0; }
+.oa-stage[data-approval-status="Invoice preparation"] { background:#fff3db; color:#825509; }
+.oa-stage[data-approval-status="Invoice review"] { background:#e5eff9; color:#245d85; }

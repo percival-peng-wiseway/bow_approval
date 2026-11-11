@@ -1,0 +1,52 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import {once} from 'node:events';
+import {createWorkspaceServer} from '../server.mjs';
+import {provisionAccounts} from '../server/auth.mjs';
+
+test('customer password login, role separation, private credentials, reset and persistence',async()=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'customer-password-'));let server;
+ try{
+  await provisionAccounts(dir,'staff-test-password');
+  const start=async()=>{server=await createWorkspaceServer({dataDir:dir,mailEnv:{}});server.listen(0,'127.0.0.1');await once(server,'listening');return 'http://127.0.0.1:'+server.address().port;};
+  let base=await start();
+  const call=async(route,cookie,data)=>{const r=await fetch(base+route,{method:data?'POST':'GET',headers:{...(cookie?{Cookie:cookie}:{}),...(data?{'Content-Type':'application/json',Origin:base,'X-Requested-With':'ApprovalWorkspace'}:{})},body:data?JSON.stringify(data):undefined});return {status:r.status,body:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0]};};
+  const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
+  let admin=(await call('/api/auth/login',null,{username:'Kate',password:'staff-test-password'})).cookie;
+  const pm=(await call('/api/auth/login',null,{username:'Hassan Kassem',password:'staff-test-password'})).cookie;
+  const cmd=async input=>call('/api/workspace/command',admin,{revision:ok(await call('/api/workspace',admin)).revision,...input});
+  const c=ok(await cmd({operation:'customer',data:{name:'Customer A',email:'a@example.invalid'}})).result;
+  const c2=ok(await cmd({operation:'customer',data:{name:'Customer B',email:'b@example.invalid'}})).result;
+  ok(await cmd({operation:'project',data:{name:'A project',pm:'taylor',director:'sam',customerId:c.id,threshold:10000}}));
+  ok(await cmd({operation:'project',data:{name:'B private project',pm:'taylor',director:'sam',customerId:c2.id,threshold:10000}}));
+  const input={id:c.id,username:'cusA',password:'test-secret-123'};
+  assert.equal((await call('/api/customer/password',pm,input)).status,403);
+  assert.equal((await call('/api/customer/password',null,input)).status,401);
+  assert.equal((await call('/api/customer/password',admin,{...input,username:'Kate'})).status,409);
+  assert.equal((await call('/api/customer/password',admin,{...input,password:'x'})).status,400);
+  ok(await call('/api/customer/password',admin,input));
+  const login=(password=input.password,audience='customer')=>call('/api/auth/login',null,{username:'CUSA',password,audience});
+  assert.equal((await login('wrong')).status,401);
+  assert.equal((await login(input.password,'staff')).status,401);
+  assert.equal((await call('/api/auth/login',null,{username:'Kate',password:'staff-test-password',audience:'customer'})).status,401);
+  const session=await login();ok(session);assert.equal(session.body.user.role,'Customer');
+  assert.deepEqual(ok(await call('/api/customer/workspace',session.cookie)).projects.map(p=>p.name),['A project']);
+  assert.equal((await call('/api/workspace',session.cookie)).status,403);
+  assert.equal((await call('/api/customer/password',session.cookie,input)).status,403);
+  assert.ok(!JSON.stringify(ok(await call('/api/workspace',admin))).includes(input.password));
+  assert.ok(!(await fs.readFile(path.join(dir,'accounts.json'),'utf8')).includes(input.password));
+  ok(await call('/api/customer/password',admin,{...input,password:'replacement-123'}));
+  assert.equal((await call('/api/auth/me',session.cookie)).status,401);
+  assert.equal((await login()).status,401);
+  ok(await login('replacement-123'));
+  await new Promise(r=>server.close(r));base=await start();
+  const persisted=await login('replacement-123');ok(persisted);
+  admin=(await call('/api/auth/login',null,{username:'Kate',password:'staff-test-password'})).cookie;
+  ok(await cmd({operation:'customer',data:{...c,active:false}}));
+  assert.equal((await login('replacement-123')).status,401);
+  assert.equal((await call('/api/customer/workspace',persisted.cookie)).status,401);
+ }finally{if(server)await new Promise(r=>server.close(r));await fs.rm(dir,{recursive:true,force:true});}
+});

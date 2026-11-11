@@ -17,11 +17,28 @@ function amounts(text) {
   const matches=[...clean.matchAll(/(?:AUD|USD|NZD|EUR|GBP|A\$|AU\$|US\$|\$|€|£)?\s*(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{2})?)(?![\d.])/gi)];
   return matches.map(m=>Number(m[1].replaceAll(',',''))).filter(Number.isFinite);
 }
+export function extractBankDetails(text){
+  const lines=String(text).split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  const label=/(?:^|\s)(Bank\s+name|Account\s+name|Account\s+holder|BSB(?:\s+(?:number|no\.?))?|(?:Bank\s+)?Account\s+(?:number|no\.?|#)|SWIFT(?:\s+code)?|IBAN)\s*[:#-]?\s*/gi;
+  const facts=new Map();
+  for(let i=0;i<lines.length;i++){
+    const matches=[...lines[i].matchAll(label)];
+    for(let n=0;n<matches.length;n++){
+      const m=matches[n],key=/^BSB/i.test(m[1])?'BSB':/^SWIFT/i.test(m[1])?'SWIFT':/^IBAN/i.test(m[1])?'IBAN':/^Bank name/i.test(m[1])?'Bank name':/^Account (?:name|holder)/i.test(m[1])?'Account name':'Account number';
+      let value=lines[i].slice(m.index+m[0].length,matches[n+1]?.index).trim().replace(/[|;,]+$/,'').trim();
+      if(!value&&lines[i+1]&&![...lines[i+1].matchAll(label)].length)value=lines[i+1];
+      const valid=key==='BSB'?/^\d{3}[ -]?\d{3}$/.test(value):key==='Account number'?/^\d[\d -]{3,24}$/.test(value):key==='SWIFT'?/^[A-Z0-9]{8}(?:[A-Z0-9]{3})?$/.test(value):key==='IBAN'?/^[A-Z]{2}\d{2}[A-Z0-9 ]{10,32}$/.test(value):value.length>=2&&value.length<=160&&!/^(?:invoice|total|GST|ABN|due date)\b/i.test(value);
+      if(valid){const values=facts.get(key)||new Set();values.add(value);facts.set(key,values);}
+    }
+  }
+  return [...facts].filter(([,v])=>v.size===1).map(([k,v])=>`${k}: ${[...v][0]}`).join('\n');
+}
 export function parseInvoice(text) {
   const lines = text.replaceAll('\r','').split('\n').map(s=>s.trim()).filter(Boolean);
-  const fields={supplier:'',reference:'',date:'',dueDate:'',abn:'',currency:'',subtotal:null,tax:null,total:null};
+  const fields={supplier:'',reference:'',date:'',dueDate:'',abn:'',bankDetails:'',currency:'',subtotal:null,tax:null,total:null};
   const evidence={};const warnings=[];
   const set=(key,value,line,kind='label')=>{fields[key]=value;evidence[key]={text:line,kind};};
+  const bankDetails=extractBankDetails(text);if(bankDetails)set('bankDetails',bankDetails,bankDetails);
   const dateToken=/(?:20\d{2}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]20\d{2}|\d{1,2}\s+[A-Za-z]{3,9}\s*,?\s*20\d{2}|[A-Za-z]{3,9}\s+\d{1,2},?\s*20\d{2})/;
   for(let i=0;i<lines.length;i++) {
     const line=lines[i];
@@ -80,6 +97,6 @@ export function parseInvoice(text) {
   if(/\b(?:credit\s+note|credit\s+memo)\b/i.test(text))warnings.push('This appears to be a credit note. Credit notes are not supported by the Bill importer.');
   if([fields.subtotal,fields.tax,fields.total].some(n=>n!==null&&n<0))warnings.push('Negative amounts require manual review; this Bill importer only supports non-negative amounts.');
   if(/\b\d{1,2}[/.]\d{1,2}[/.]20\d{2}\b/.test(text))warnings.push('Numeric dates were read as day/month/year. Check both dates.');
-  const missing=Object.entries(fields).filter(([k,v])=>!['abn','dueDate'].includes(k)&&(v===''||v===null)).map(([k])=>k);
+  const missing=Object.entries(fields).filter(([k,v])=>!['abn','dueDate','bankDetails'].includes(k)&&(v===''||v===null)).map(([k])=>k);
   return {fields,evidence,warnings,missing};
 }

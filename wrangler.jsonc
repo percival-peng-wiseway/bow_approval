@@ -77,7 +77,8 @@
       "name": "bow-approval-qa",
       "vars": {
         "APP_ENV": "qa",
-        "PUBLIC_APP_URL": "https://bow-approval-qa.percival-0ae.workers.dev"
+        "PUBLIC_APP_URL": "https://bow-approval-qa.percival-0ae.workers.dev",
+        "EMAIL_FROM": "BOW OA <notifications@wiseway.ai>"
       },
       "d1_databases": [
         {

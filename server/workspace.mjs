@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import {initialState} from '../app/domain.mjs';
+import {initialState,isAdmin,users} from '../app/domain.mjs';
 import {ensureBusiness} from '../app/business.mjs';
 import {applyCommand} from './commands.mjs';
 export async function openWorkspace(dir,{verifyCommand=async()=>{}}={}){
@@ -11,18 +11,28 @@ export async function openWorkspace(dir,{verifyCommand=async()=>{}}={}){
  const serialize=fn=>{const next=queue.then(fn);queue=next.catch(()=>{});return next;};
  const view=actor=>({state:{...structuredClone(record.state),actor},revision:record.revision,canImport:record.revision===0&&!record.imported,imported:record.imported});
  const save=async next=>{const tmp=file+'.tmp';await fs.writeFile(tmp,JSON.stringify(next),{mode:0o600});await fs.rename(tmp,file);record=next;};
- return {read:view,command:(actor,input)=>serialize(async()=>{
+ return {read:view,command:(actor,input,{performedBy}={})=>serialize(async()=>{
+  if(performedBy&&performedBy!=='admin')throw Object.assign(new Error('Invalid delegation.'),{status:403});
   if(input.revision!==record.revision)throw Object.assign(new Error('The workspace changed. Review the latest data and try again.'),{status:409});
   await verifyCommand(actor,input);
   const next=structuredClone(record);let result;
   if(input.operation==='import'){
-   if(actor!=='alex')throw Object.assign(new Error('Only Kate can import the existing workspace.'),{status:403});
+   if(!isAdmin(actor))throw Object.assign(new Error('Only Admin can import the existing workspace.'),{status:403});
    if(record.revision!==0||record.imported)throw Object.assign(new Error('The shared workspace already contains data. The browser copy has been preserved.'),{status:409});
    const legacy=input.data;
    if(!Array.isArray(legacy?.requests)||!legacy.workflows||!Array.isArray(legacy?.business?.projects)||!Array.isArray(legacy?.business?.requests))throw new Error('Invalid browser workspace.');
    await fs.writeFile(path.join(dir,'browser-import.json'),JSON.stringify(legacy),{flag:'wx',mode:0o600}).catch(e=>{if(e.code!=='EEXIST')throw e;});
    next.state=structuredClone(legacy);next.imported=true;result={imported:true};
   }else result=applyCommand(next.state,actor,input);
+  if(performedBy){
+   for(const collection of ['requests','projects','suppliers','customers'])for(const item of next.state.business?.[collection]||[]){
+    const old=record.state.business?.[collection]?.find(v=>v.id===item.id);
+    for(const entry of (item.history||[]).slice(old?.history?.length||0)){
+     entry.performedBy=performedBy;entry.detail=[entry.detail,`Performed by admin on behalf of ${users.find(u=>u.id===actor)?.name||actor}`].filter(Boolean).join(' · ');
+    }
+   }
+   next.state.adminActions??=[];next.state.adminActions.push({at:new Date().toISOString(),performedBy,actingAs:actor,operation:input.operation,action:input.action||null,target:input.id||result?.id||null});
+  }
   next.revision++;delete next.state.actor;await save(next);return {...view(actor),result};
  })};
 }

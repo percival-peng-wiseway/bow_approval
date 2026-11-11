@@ -1,7 +1,8 @@
 import {validateGraph, traceGraph} from './workflow-graph.mjs';
 // Independent implementation based on public ApprovalMax documentation.
 // Existing IDs are retained so saved requests, decisions and approver assignments remain valid.
-export const users = [
+export const defaultUsers = [
+  { id: 'admin', name: 'admin', role: 'Admin', initials: 'AD' },
   { id: 'employee', name: 'Employee', inactive: true, role: 'Employee', initials: 'EM' },
   { id: 'alex', name: 'Kate', role: 'Admin', initials: 'KA' },
   { id: 'jamie', name: 'Lewis', role: 'Finance', initials: 'LE' },
@@ -13,6 +14,11 @@ export const users = [
   { id: 'pm-c', name: 'PM C', inactive: true, role: 'PM', initials: 'PC' },
   { id: 'pm-d', name: 'PM D', inactive: true, role: 'PM', initials: 'PD' },
 ];
+let clientUsers=defaultUsers, directoryProvider=()=>clientUsers;
+export function setDirectoryProvider(provider){directoryProvider=provider;}
+export function setClientUsers(directory){if(Array.isArray(directory))clientUsers=directory;}
+export const users=new Proxy([], {get(_target,key){const current=directoryProvider();const value=Reflect.get(current,key);return typeof value==='function'?value.bind(current):value;}});
+export const isAdmin = actor => users.some(u => u.id === actor && u.role === 'Admin' && !u.inactive);
 export const canManageWorkflows = actor => users.some(u => u.id === actor && ['Admin','Finance','Director'].includes(u.role));
 export function workflowInfo(state, id) {
   if (!Object.hasOwn(state.workflows, id)) return null;

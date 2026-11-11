@@ -1,0 +1,71 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import {once} from 'node:events';
+import {createWorkspaceServer} from '../server.mjs';
+import {provisionAccounts} from '../server/auth.mjs';
+import {shareCustomerContracts,customerView,customerFiles,saveCustomer} from '../app/customer-domain.mjs';
+import {saveProject,createBusinessRequest,actBusiness} from '../app/business.mjs';
+
+const contract={name:'engineering-contract.txt',type:'text/plain',size:8,data:'data:text/plain;base64,Y29udHJhY3Q='};
+const internal={name:'internal-quote.txt',type:'text/plain',size:5,data:'data:text/plain;base64,cXVvdGU='};
+test('existing project progress and explicitly shared engineering contracts remain customer scoped',()=>{
+ const s={business:{projects:[],requests:[]}};
+ const p=saveProject(s,{name:'Existing project',pm:'taylor',director:'sam',threshold:10000},'alex');
+ const r=createBusinessRequest(s,{kind:'service',payingEntity:'Test Development Pty Ltd',projectId:p.id,title:'Engineer',background:'Site',purpose:'Survey',approach:'Visit',amount:800,attachments:[internal]},'taylor');
+ actBusiness(s,r.id,'taylor','submit');actBusiness(s,r.id,'sam','approve');actBusiness(s,r.id,'jamie','approve');
+ actBusiness(s,r.id,'taylor','source',{quotes:[{supplier:'Engineer',amount:800,quoteFiles:[internal],contractFiles:[contract]}],selectedIndex:0,reason:'Scope fits'});
+ const c=saveCustomer(s,{name:'Client',email:'a@example.invalid'},'alex'),other=saveCustomer(s,{name:'Other',email:'b@example.invalid'},'alex');
+ saveProject(s,{...p,customerId:c.id},'alex');
+ assert.equal(customerView(s,c.id).projects[0].requests[0].review.version,0);
+ assert.equal(customerView(s,c.id).projects[0].requests[0].progress,'Reviewing supplier selection');
+ assert.equal(customerFiles(s,c.id).length,0);
+ const input={id:r.id,quoteId:r.selectedQuote,indexes:[0],note:'For your records'};
+ assert.throws(()=>shareCustomerContracts(s,'pm-b',input));
+ assert.throws(()=>shareCustomerContracts(s,c.id,input));
+ assert.throws(()=>shareCustomerContracts(s,'taylor',{...input,indexes:[2]}));
+ assert.throws(()=>shareCustomerContracts(s,'taylor',{...input,quoteId:'old'}));
+ shareCustomerContracts(s,'taylor',input);
+ assert.deepEqual(customerFiles(s,c.id),[contract]);assert.equal(customerFiles(s,other.id).length,0);
+ assert.ok(!JSON.stringify(customerView(s,c.id)).includes(internal.data));
+ assert.throws(()=>saveProject(s,{...p,customerId:other.id},'alex'));
+ shareCustomerContracts(s,'taylor',{...input,indexes:[]});assert.equal(customerFiles(s,c.id).length,0);
+});
+
+test('project invitations provision credentials, encrypt queued passwords, deduplicate and cancel superseded mail',async()=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'bow-project-invite-')),sent=[];let server;
+ try{
+  await provisionAccounts(dir,'staff-test-password');
+  const start=async(mailEnv={},sendMail)=>{server=await createWorkspaceServer({dataDir:dir,mailEnv,sendMail});server.listen(0,'127.0.0.1');await once(server,'listening');return 'http://127.0.0.1:'+server.address().port;};
+  let base=await start();
+  const call=async(route,cookie,data)=>{const r=await fetch(base+route,{method:data?'POST':'GET',headers:{...(cookie?{Cookie:cookie}:{}),...(data?{'Content-Type':'application/json',Origin:base,'X-Requested-With':'ApprovalWorkspace'}:{})},body:data?JSON.stringify(data):undefined});return {status:r.status,body:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0]};};
+  const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
+  const login=async name=>(await call('/api/auth/login',null,{username:name,password:'staff-test-password'})).cookie;
+  let admin=await login('Kate'),pm=await login('Hassan Kassem');
+  const snapshot=async()=>ok(await call('/api/workspace',admin));
+  const cmd=async input=>call('/api/workspace/command',admin,{revision:(await snapshot()).revision,...input});
+  const p=ok(await cmd({operation:'project',data:{name:'Client site',pm:'taylor',director:'sam',threshold:10000}})).result;
+  const input={projectId:p.id,name:'Client A',contact:'Client contact',email:'client@example.invalid',username:'clientA',password:'unique-invitation-secret',invitationId:crypto.randomUUID(),revision:(await snapshot()).revision};
+  assert.equal((await call('/api/customer/project-invite',pm,input)).status,403);
+  assert.equal((await call('/api/customer/project-invite',admin,{...input,username:'Kate'})).status,409);
+  assert.equal((await snapshot()).state.business.customers?.length||0,0);
+  const invite=ok(await call('/api/customer/project-invite',admin,input));assert.equal(invite.configured,false);assert.equal(invite.status,'queued');
+  const repeat=ok(await call('/api/customer/project-invite',admin,input));assert.equal(repeat.id,invite.id);
+  const after=await snapshot();assert.equal(after.state.business.customers.length,1);assert.equal(after.state.business.projects[0].customerId,invite.customerId);
+  const client=await call('/api/auth/login',null,{username:'clientA',password:input.password,audience:'customer'});ok(client);
+  assert.deepEqual(ok(await call('/api/customer/workspace',client.cookie)).projects.map(p=>p.id),[p.id]);
+  const mail=ok(await call('/api/customer/admin',admin)).mail;assert.equal(mail.length,1);assert.ok(!JSON.stringify(mail).includes(input.password));assert.ok(mail.every(m=>!Object.hasOwn(m,'credentials')&&!Object.hasOwn(m,'passwordVersion')));
+  const queued=JSON.parse(await fs.readFile(path.join(dir,'customer-access.json'),'utf8'));assert.ok(queued.outbox[0].credentials.data);assert.ok(!JSON.stringify(queued).includes(input.password));
+  ok(await call('/api/customer/password',admin,{id:invite.customerId,username:'clientA',password:'new-invitation-secret'}));
+  await new Promise(r=>server.close(r));
+  base=await start({EMAIL_FROM:'BOW OA <notifications@wiseway.ai>',PUBLIC_APP_URL:'https://test.example.invalid',RESEND_API_KEY:'fake-key'},async m=>{sent.push(m);return {status:'accepted',providerId:'fake-provider'};});
+  admin=await login('Kate');
+  const expired=ok(await call('/api/customer/admin',admin)).mail;assert.equal(expired[0].status,'cancelled');assert.equal(sent.length,0);
+  const next={...input,password:'final-invitation-secret',invitationId:crypto.randomUUID(),revision:(await snapshot()).revision};
+  const delivered=ok(await call('/api/customer/project-invite',admin,next));assert.equal(delivered.status,'accepted');assert.equal(sent.length,1);assert.ok(sent[0].text.includes(next.password));assert.ok(sent[0].text.includes('Customer version'));
+  const stored=await fs.readFile(path.join(dir,'customer-access.json'),'utf8');assert.ok(!stored.includes(next.password));assert.ok(JSON.parse(stored).outbox.every(m=>!Object.hasOwn(m,'credentials')));
+  assert.equal((await call('/api/customer/project-invite',admin,{...next,invitationId:crypto.randomUUID(),revision:0})).status,409);
+ }finally{if(server?.listening)await new Promise(r=>server.close(r));await fs.rm(dir,{recursive:true,force:true});}
+});

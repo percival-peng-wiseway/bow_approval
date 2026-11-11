@@ -1,23 +1,24 @@
 import {verifyCloudChecks} from './abn.mjs';
-import {initialState} from '../app/domain.mjs';
+import {initialState,isAdmin,users} from '../app/domain.mjs';
 import {applyCommand} from '../server/commands.mjs';
 import {normalizeFiles,referencedFileIds,discardFiles} from './files.mjs';
 import {fail} from './http.mjs';
-const collections={customer:s=>s.business.customers||[],project:s=>s.business.projects,request:s=>s.business.requests,legacy:s=>s.requests};
+const collections={supplier:s=>s.business.suppliers||[],customer:s=>s.business.customers||[],project:s=>s.business.projects,request:s=>s.business.requests,legacy:s=>s.requests};
 const fresh=()=>{const s=initialState();s.requests=[];s.business={projects:[],requests:[],customers:[]};delete s.actor;return s;};
 function safeJson(value){const json=JSON.stringify(value);if(new TextEncoder().encode(json).length>1800000)fail(413,'This record is too large. Split the request into smaller records.');return json;}
 export async function readWorkspace(env,actor){
  const [meta,entities]=await env.DB.batch([env.DB.prepare('SELECT * FROM workspace_meta WHERE id=1'),env.DB.prepare('SELECT * FROM entities ORDER BY position ASC')]);
  const row=meta.results[0];if(!row)fail(503,'Database migrations have not been applied.');
- const base=JSON.parse(row.base_json),state={...fresh(),...base,requests:[],business:{projects:[],requests:[],customers:[]}};
+ const base=JSON.parse(row.base_json),state={...fresh(),...base,requests:[],business:{...base.business,projects:[],requests:[],customers:[],suppliers:[]}};
  for(const item of entities.results){const target=collections[item.collection]?.(state);if(target)target.push(JSON.parse(item.payload));}
  state.actor=actor;state.storageMode='cloud';state.environment=env.APP_ENV||'prod';
  return {state,revision:row.revision,imported:!!row.imported,canImport:row.revision===0&&!row.imported};
 }
-export async function command(env,actor,input){
+export async function command(env,actor,input,{performedBy}={}){
+ if(performedBy&&performedBy!=='admin')fail(403,'Invalid delegation.');
  const before=await readWorkspace(env,actor);
  if(input.revision!==before.revision)fail(409,'The workspace changed. Review the latest data and try again.');
- if(input.operation==='import'&&(actor!=='alex'||!before.canImport))fail(actor==='alex'?409:403,'Only the Admin can import into an empty workspace.');
+ if(input.operation==='import'&&(!isAdmin(actor)||!before.canImport))fail(isAdmin(actor)?409:403,'Only the Admin can import into an empty workspace.');
  const created=[];let committed=false;
  try{
   await verifyCloudChecks(env,actor,input);
@@ -27,7 +28,14 @@ export async function command(env,actor,input){
    const s=clean.data;if(!Array.isArray(s?.requests)||!s.workflows||!Array.isArray(s?.business?.projects)||!Array.isArray(s?.business?.requests))fail(400,'Invalid workspace backup.');
    state=s;imported=true;result={imported:true};
   }else result=applyCommand(state,actor,clean);
-  const base={...state};delete base.actor;delete base.storageMode;delete base.environment;delete base.requests;delete base.business;
+  if(performedBy){
+   for(const collection of ['requests','projects','suppliers','customers'])for(const item of state.business?.[collection]||[]){
+    const old=before.state.business?.[collection]?.find(v=>v.id===item.id);
+    for(const entry of (item.history||[]).slice(old?.history?.length||0)){entry.performedBy=performedBy;entry.detail=[entry.detail,'Performed by admin on behalf of '+(users.find(u=>u.id===actor)?.name||actor)].filter(Boolean).join(' · ');}
+   }
+   state.adminActions??=[];state.adminActions.push({at:new Date().toISOString(),performedBy,actingAs:actor,operation:input.operation,action:input.action||null,target:input.id||result?.id||null});
+  }
+  const base={...state};delete base.actor;delete base.storageMode;delete base.environment;delete base.requests;base.business=Object.fromEntries(Object.entries(state.business||{}).filter(([key])=>!['requests','projects','customers','suppliers'].includes(key)));
   const commit=crypto.randomUUID();
   const statements=[env.DB.prepare('UPDATE workspace_meta SET revision=revision+1,last_commit=?,base_json=?,imported=? WHERE id=1 AND revision=?').bind(commit,safeJson(base),imported?1:0,before.revision)];
   const guard='(SELECT last_commit FROM workspace_meta WHERE id=1)=?';

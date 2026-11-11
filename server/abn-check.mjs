@@ -29,8 +29,8 @@ export async function inlineContract(file){
  const match=/^data:(application\/pdf|image\/(?:png|jpeg|webp)|text\/plain);base64,([A-Za-z0-9+/]+={0,2})$/.exec(file?.data||'');need(match,'Upload a PDF, image or text contract.');
  const bytes=Buffer.from(match[2],'base64');need(bytes.length>0&&bytes.length<=3*1024*1024,'Contract files must be under 3 MB.');return {bytes,type:match[1]};
 }
-async function materialize(files,readFile){need(Array.isArray(files)&&files.length>0&&files.length<=20,'Upload 1–20 contract files before checking ABN.');const out=[];let total=0;for(const file of files){const item=await readFile(file);total+=item.bytes.length;need(total<3*1024*1024,'Contract files must total less than 3 MB.');out.push({...item,name:String(file.name||''),sha256:digest(item.bytes)});}return out;}
-const fingerprint=files=>digest(JSON.stringify(files.map(f=>[f.name,f.sha256]).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)))));
+export async function materialize(files,readFile){need(Array.isArray(files)&&files.length>0&&files.length<=20,'Upload 1–20 contract files before checking ABN.');const out=[];let total=0;for(const file of files){const item=await readFile(file);total+=item.bytes.length;need(total<3*1024*1024,'Contract files must total less than 3 MB.');out.push({...item,name:String(file.name||''),sha256:digest(item.bytes)});}return out;}
+export const fingerprint=files=>digest(JSON.stringify(files.map(f=>[f.name,f.sha256]).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)))));
 export async function createContractCheck(input,actor,{readFile=inlineContract,scan,lookup,save}){
  const supplier=String(input.supplier||'').trim();need(supplier&&supplier.length<=300,'Enter the supplier name before checking ABN.');
  const files=await materialize(input.files,readFile),warnings=[],extracted=[];let unreadable=false;
@@ -43,7 +43,8 @@ export async function createContractCheck(input,actor,{readFile=inlineContract,s
  if(!selected)warnings.push(entries.length?'Multiple contract ABNs found. Identify the supplier ABN, or explain the unresolved identity for review.':'No ABN found in the contract. Enter the supplier ABN, or explain why it is unavailable.');
  if(entered&&!detected.includes(entered))warnings.push('The entered ABN was not detected in the contract. Confirm it against the original document.');
  if(entity){if(entity.source!=='official')warnings.push(entity.source==='invalid'?'The supplier ABN fails its checksum.':'Official ABN Lookup could not be completed.');else{if(entity.status.toLowerCase()!=='active')warnings.push('Supplier ABN status: '+entity.status+'.');if(!entity.nameMatch)warnings.push('Supplier name does not exactly match the registered or business names.');if(entity.gstRegistered===false)warnings.push('Supplier is not currently registered for GST. Review any GST charged.');}}
- const result={id:randomUUID(),requestId:input.requestId,actor,supplier,checkedAt:new Date().toISOString(),fingerprint:fingerprint(files),files:files.map(({name,sha256})=>({name,sha256})),detected,selectedAbn:selected,entries,warnings,status:warnings.length||unreadable?'review':'checked'};
+ if(input.documentType==='invoice')for(let i=0;i<warnings.length;i++)warnings[i]=warnings[i].replaceAll('contract','invoice');
+ const result={...(input.documentType==='invoice'?{kind:'invoice-abn'}:{}),id:randomUUID(),requestId:input.requestId,actor,supplier,checkedAt:new Date().toISOString(),fingerprint:fingerprint(files),files:files.map(({name,sha256})=>({name,sha256})),detected,selectedAbn:selected,entries,warnings,status:warnings.length||unreadable?'review':'checked'};
  await save(result);return result;
 }
 export async function verifySourceChecks(input,actor,{readFile=inlineContract,load}){
@@ -59,4 +60,15 @@ export async function verifySourceChecks(input,actor,{readFile=inlineContract,lo
   if(check.status==='review')need(note.length>=10,'Explain the ABN findings for Finance and Director review (at least 10 characters).');
   q.abnCheck={...check,reviewNote:note};delete q.abnCheckId;delete q.abnReviewNote;
  }
+}
+
+export async function verifyInvoiceCheck(input,actor,store){
+ if(input.operation!=='action'||input.action!=='invoice')return;
+ const d=input.data||{};delete d.abnCheck;
+ const saved=await store.load(d.abnCheckId||'');
+ need(saved?.kind==='invoice-abn'&&saved.actor===actor&&saved.requestId===input.id,'Run an invoice ABN check for this request.');
+ need(saved.fingerprint===fingerprint(await materialize(d.files,store.readFile||inlineContract)),'Invoice files changed. Check the invoice ABN again.');
+ need(cleanAbn(d.abn)===saved.selectedAbn,'Invoice ABN changed. Check it again.');
+ const age=Date.now()-Date.parse(saved.checkedAt);need(age>=0&&age<86400000,'The invoice ABN check is over 24 hours old. Check again.');
+ d.abnCheck=saved;delete d.abnCheckId;
 }

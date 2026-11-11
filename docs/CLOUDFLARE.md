@@ -85,3 +85,13 @@ The test seed uses synthetic credentials and is refused for remote D1. For live 
 D1 approval events are application audit records, not an independently immutable ledger. Cloudflare account administrators retain infrastructure access. The app is a single-organization workspace with a restricted customer portal. Banking and accounting are not integrated; recorded payments do not transfer money. Resend customer notifications require the server-only configuration described in the README. Without that configuration, notifications remain queued. Data reads currently load the organization's workspace; larger organizations will need pagination and narrower query endpoints.
 
 For the customer portal, migration `0003_customer_portal.sql` adds one-time access links and a durable mail outbox. No existing accounts or requests are rewritten. `node tests/customer-cloud.mjs` verifies customer confirmation, one-time D1 sessions and private R2 access against the QA Worker, using `CLOUD_TEST_PASSWORD` from the environment. This suite refuses production and requires email delivery to be disabled. It uses synthetic customer records and deactivates its customer on completion.
+
+## November launch controls
+
+Apply migration `0004_launch_controls.sql` before this Worker revision. Staff account management, cloud Contract AI settings and password-change enforcement depend on it. See [launch readiness](LAUNCH_READINESS.md) for the local test evidence and production prerequisites.
+
+`OPENAI_API_KEY` remains a Worker Secret; model and enable/disable preferences are managed in Settings. Existing local keys are not automatically uploaded. Staff-directory changes preserve existing account IDs and approval history. The seed script skips customer accounts, preserves usernames and does not overwrite existing staff accounts.
+
+For an isolated emulator rehearsal, pass the same `--persist-to /private/test-state` to local migrations, `scripts/seed-cloud-accounts.mjs QA --local --test`, and `wrangler dev --env QA --local`. Then run `node tests/cloud-launch.mjs` and `npm run test:cloud` with `CLOUD_TEST_URL` pointing at the emulator. These tests create synthetic QA records and refuse a workspace not marked `qa`. Never use them on production.
+
+To back up the emulator use `npm run backup:cloud -- QA /private/new-backup --local --persist-to /private/test-state`. For remote QA/prod backup omit `--local` and confirm the target environment. Restores are always to a new local directory; no automatic remote restore is provided.

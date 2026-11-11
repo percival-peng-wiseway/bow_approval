@@ -1,14 +1,22 @@
+import {canReadFile} from '../server/access.mjs';
+import {readWorkspace} from './workspace.mjs';
 import {fail} from './http.mjs';
 const inline=/^data:(application\/pdf|image\/(?:png|jpeg|webp)|text\/plain);base64,([A-Za-z0-9+/]+={0,2})$/;
 const reference=/^\/api\/files\/([a-f0-9-]{36})$/;
 export const fileValue=row=>({id:row.id,name:row.name,type:row.mime_type,size:row.size,data:'/api/files/'+row.id});
+export async function accessibleFile(env,actor,id){
+ const row=await env.DB.prepare('SELECT * FROM files WHERE id=? AND (committed=1 OR uploaded_by=?)').bind(id,actor).first();
+ if(!row)return null;
+ if(!row.committed&&row.uploaded_by===actor)return row;
+ return canReadFile(await readWorkspace(env,actor),actor,id)?row:null;
+}
 export async function normalizeFiles(value,env,actor,created=[],cache=new Map(),depth=0){
  if(depth>60)fail(400,'Request nesting is too deep.');
  if(!value||typeof value!=='object')return value;
  if(typeof value.data==='string'&&typeof value.name==='string'){
   if(cache.has(value.data))return cache.get(value.data);
   const ref=reference.exec(value.data);
-  if(ref){const row=await env.DB.prepare('SELECT * FROM files WHERE id=? AND (committed=1 OR uploaded_by=?)').bind(ref[1],actor).first();if(!row)fail(400,'An attachment is unavailable. Upload it again.');const file=fileValue(row);cache.set(value.data,file);return file;}
+  if(ref){const row=await accessibleFile(env,actor,ref[1]);if(!row)fail(400,'An attachment is unavailable. Upload it again.');const file=fileValue(row);cache.set(value.data,file);return file;}
   const match=inline.exec(value.data);if(!match)fail(400,'Upload a PDF, image or text document.');
   const bytes=Uint8Array.from(atob(match[2]),c=>c.charCodeAt(0));if(!bytes.length||bytes.length>3*1024*1024)fail(413,'Each attachment must be less than 3 MB.');
   if(created.length>=80)fail(413,'Too many attachments in one request.');
@@ -29,7 +37,7 @@ export function referencedFileIds(value,ids=new Set()){
 }
 export async function discardFiles(env,created){for(const row of created){const record=await env.DB.prepare('SELECT committed FROM files WHERE id=?').bind(row.id).first();if(record?.committed)continue;await env.FILES.delete(row.object_key);await env.DB.prepare('DELETE FROM files WHERE id=? AND committed=0').bind(row.id).run();}}
 export async function downloadFile(request,env,user,id){
- const row=await env.DB.prepare('SELECT * FROM files WHERE id=? AND (committed=1 OR uploaded_by=?)').bind(id,user.id).first();if(!row)fail(404,'Attachment not found.');
+ const row=user.role==='Customer'?await env.DB.prepare('SELECT * FROM files WHERE id=? AND committed=1').bind(id).first():await accessibleFile(env,user.id,id);if(!row)fail(404,'Attachment not found.');
  const object=await env.FILES.get(row.object_key);if(!object)fail(404,'Attachment not found.');
  return new Response(request.method==='HEAD'?null:object.body,{headers:{'Content-Type':row.mime_type,'Content-Length':String(row.size),'Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(row.name)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; sandbox"}});
 }

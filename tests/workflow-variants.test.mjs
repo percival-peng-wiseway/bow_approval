@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {users,initialState,canManageWorkflows,createWorkflow,workflowInfo,workflowOptions,createRequest,updateRequest,updateWorkflow,decide} from '../app/domain.mjs';
 const data={type:'Bill',supplier:'Test',items:[{description:'Service',quantity:1,unitPrice:100,taxRate:0}]};
-test('employee and nine management roles preserve legacy IDs and allow all requested approvers',()=>{
- assert.deepEqual(users.map(u=>u.name),['Employee','Kate','Lewis','Joe','Jason','Steve','Hassan Kassem','Nidhi Pandey','PM C','PM D']);
+test('dedicated admin and existing roles preserve legacy IDs and allow all requested approvers',()=>{
+ assert.deepEqual(users.map(u=>u.name),['admin','Employee','Kate','Lewis','Joe','Jason','Steve','Hassan Kassem','Nidhi Pandey','PM C','PM D']);
  assert.equal(users.filter(u=>u.role==='Director').length,3);assert.equal(users.filter(u=>u.role==='PM').length,4);
  assert.equal(users.find(u=>u.id==='alex').name,'Kate');assert.equal(users.find(u=>u.id==='jamie').name,'Lewis');assert.equal(users.find(u=>u.id==='sam').name,'Joe');assert.equal(users.find(u=>u.id==='taylor').name,'Hassan Kassem');
  for(const actor of users){const s=initialState();updateWorkflow(s,'Bill',[{id:'one',name:'Review',mode:'Any',approvers:[actor.id],minAmount:0}],'alex');const requester=actor.id==='taylor'?'pm-b':'taylor';const r=createRequest(s,data,requester);decide(s,r.id,actor.id,'approve');assert.equal(r.status,'Approved');}

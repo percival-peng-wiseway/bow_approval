@@ -16,3 +16,6 @@ coverage/
 
 /dist/
 /.cloudflare/
+
+/backups/
+/restores/
