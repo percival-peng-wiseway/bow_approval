@@ -33,7 +33,7 @@
   "name": "bow-approval",
   "vars": {
     "APP_ENV": "prod",
-    "PUBLIC_APP_URL": "https://bow-approval.percival-0ae.workers.dev"
+    "PUBLIC_APP_URL": "https://bowoa.wiseway.ai"
   },
   "d1_databases": [
     {
@@ -59,7 +59,7 @@
   },
   "containers": [
     {
-      "name": "bow-approval-ocr-prod",
+      "name": "bow-approval-ocr-prod-v2",
       "class_name": "InvoiceOCR",
       "image": "./ocr/Dockerfile",
       "image_build_context": ".",
@@ -122,7 +122,7 @@
       "name": "bow-approval",
       "vars": {
         "APP_ENV": "prod",
-        "PUBLIC_APP_URL": "https://bow-approval.percival-0ae.workers.dev"
+        "PUBLIC_APP_URL": "https://bowoa.wiseway.ai"
       },
       "d1_databases": [
         {
@@ -148,7 +148,7 @@
       },
       "containers": [
         {
-          "name": "bow-approval-ocr-prod",
+          "name": "bow-approval-ocr-prod-v2",
           "class_name": "InvoiceOCR",
           "image": "./ocr/Dockerfile",
           "image_build_context": ".",

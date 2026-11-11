@@ -2,6 +2,12 @@
 
 ## Architecture
 
+Production entry: `https://bowoa.wiseway.ai`. Route 53 remains authoritative for `wiseway.ai`; the `bowoa` CNAME points to `bow-oa.pages.dev` (TTL 300). The separate Pages project `bow-oa` forwards requests through its `BOW` service binding to the production `bow-approval` Worker. It preserves the original URL, Origin, cookies and body, so existing authentication, CSRF checks and private-file authorization remain enforced. No E3 domain or resource is used.
+
+Deploy gateway changes from the repository root with `npx wrangler pages deploy --cwd pages-gateway --project-name bow-oa --branch prod --commit-dirty=true`. This is separate from the main Worker deployment. Preview hosts are rejected; the preview service configuration points to QA, not production. Avoid recreating the Pages project through Wrangler's automatic Pages-to-Workers conversion.
+
+See [the production release record](PROD_RELEASE_2026-11-11.md) for validation, backup and remaining setup details.
+
 The Worker serves static assets, login, the approval API, and authenticated file downloads. Approval rules are shared with the local Node.js server. D1 stores salted scrypt account hashes, hashed session tokens, project/request records, approval events, and revision commits. Writes use a single guarded D1 batch: concurrent edits cannot silently overwrite an accepted approval.
 
 Attachments are stored in private R2 buckets. D1 contains metadata and file IDs, not base64 file bodies. `/api/files/:id` requires an active session. This remains a shared organization workspace: signed-in members can read its requests and committed attachments; role and workflow rules govern changes. R2 public access must remain disabled.
