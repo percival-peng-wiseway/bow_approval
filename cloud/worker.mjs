@@ -2,7 +2,7 @@ import {cloudCustomerBackend} from './customer.mjs';
 import {mailConfigured,reconcileCustomerMail,flushCustomerMail,issueCustomerLink,portalRead,portalDecision} from '../server/customer-service.mjs';
 import {customerFiles} from '../app/customer-domain.mjs';
 import {Container} from '@cloudflare/containers';
-import {authenticated,login,logout,rateLimit,cookie} from './auth.mjs';
+import {authenticated,login,logout,rateLimit,cookie,changePassword,resetPassword} from './auth.mjs';
 import {json,readJson,sameOrigin,fail} from './http.mjs';
 import {readWorkspace,command} from './workspace.mjs';
 import {checkContract} from './abn.mjs';
@@ -26,6 +26,9 @@ async function handle(request,env,ctx){
   if(p==='/api/auth/logout'&&request.method==='POST')return json({ok:true},200,{'Set-Cookie':await logout(request,env)});
   const user=await authenticated(request,env);
   if(p==='/api/auth/me'&&request.method==='GET')return json({user});
+  if(p==='/api/auth/change-password'&&request.method==='POST'){const session=await changePassword(request,env,await readJson(request,4096));return json({user:session.user},200,{'Set-Cookie':session.cookie});}
+  if(user.mustChangePassword)return json({error:'Change your temporary password before continuing.',code:'PASSWORD_CHANGE_REQUIRED'},403);
+  if(p==='/api/admin/reset-password'&&request.method==='POST')return json(await resetPassword(request,env,await readJson(request,4096)));
   if(user.role==='Customer'){
    const backend=cloudCustomerBackend(env);
    if(p==='/api/customer/workspace'&&request.method==='GET')return json(portalRead(await backend.read(),user.id));

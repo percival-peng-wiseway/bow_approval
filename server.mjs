@@ -41,6 +41,9 @@ const server=http.createServer(async(req,res)=>{
       if(!actor)return json(res,401,{error:'Please sign in to continue.'});
       if(url.pathname==='/api/auth/me'&&req.method==='GET')return json(res,200,{user:actor});
       if(url.pathname==='/api/auth/logout'&&req.method==='POST'){res.setHeader('Set-Cookie',auth.logout(req));return json(res,200,{ok:true});}
+      if(url.pathname==='/api/auth/change-password'&&req.method==='POST'){const session=await auth.changePassword(req,await readBody(req,4096));res.setHeader('Set-Cookie',session.cookie);return json(res,200,{user:session.user});}
+      if(actor.mustChangePassword)return json(res,403,{error:'Change your temporary password before continuing.',code:'PASSWORD_CHANGE_REQUIRED'});
+      if(url.pathname==='/api/admin/reset-password'&&req.method==='POST')return json(res,200,await auth.resetPassword(req,await readBody(req,4096)));
       if(actor.role==='Customer'){
         if(url.pathname==='/api/customer/workspace'&&req.method==='GET')return json(res,200,portalRead(workspace.read(actor.id),actor.id));
         if(url.pathname==='/api/customer/decision'&&req.method==='POST')return json(res,200,await portalDecision(portal,actor.id,await readBody(req,8192)));
