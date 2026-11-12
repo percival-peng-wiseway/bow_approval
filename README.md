@@ -143,3 +143,5 @@ npx wrangler secret put EMAIL_FROM --env prod
 Pending confirmations generate durable outbox records. Invitation and sign-in links are stored only in private email payloads, and token hashes are used for redemption. Background processing sends queued notifications when configured. Expired or superseded notices are cancelled. Failed messages remain visible to Admin and can be retried within the provider's idempotency window using their original message ID. An accepted API response is labeled **Sent to provider**, not delivered to the inbox. Delivery/bounce webhooks are not configured.
 
 Without sender credentials, messages stay **Queued** and the UI explicitly says email delivery is not configured. No real customer email is sent by the test suite. Apply migration `0003_customer_portal.sql` before deploying this version.
+
+Password changes, Admin resets, the required D1 migration, and mobile upload verification are documented in [密码管理与手机上传](docs/PASSWORDS_AND_MOBILE.md).

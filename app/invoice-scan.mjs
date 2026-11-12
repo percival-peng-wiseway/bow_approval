@@ -1,3 +1,4 @@
+import {filePicker,bindFilePickers,readUploadFiles,validateFiles} from './uploads.mjs';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const $=s=>document.querySelector(s);
 const round=n=>Math.round((n+Number.EPSILON)*100)/100;
@@ -7,8 +8,9 @@ export function openInvoiceScanner({modal,closeModal,onImport,onCancel}) {
   const closed=()=>{teardown();if(!completed&&onCancel)queueMicrotask(onCancel);};
   const error=message=>{const el=$('#form-error');if(el)el.textContent=message;};
   function upload(){
-    modal('Scan invoice',`<div id="invoice-drop" class="invoice-drop"><div class="scan-symbol">↥</div><h3>Drop your invoice here</h3><p>PDF, JPG, PNG or WebP · up to 2 MB · up to 10 pages</p><label class="scan-file-button">Choose invoice<input id="invoice-upload" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" aria-label="Upload invoice to scan"></label><div id="scan-progress" role="status" aria-live="polite"></div></div><p class="info">Read text PDFs or scan images locally. Review the extracted fields before creating a request.</p>`,`<button data-close>Cancel</button>`,()=>{
-      $('#invoice-upload').onchange=e=>{if(e.target.files[0])scan(e.target.files[0]);};
+    modal('Scan invoice',`<div id="invoice-drop" class="invoice-drop"><div class="scan-symbol">↥</div><h3>Drop your invoice here</h3><p>PDF, JPG, PNG or WebP · up to 2 MB · up to 10 pages</p>${filePicker('Choose invoice','invoice-upload',{multiple:false,invoice:true,maxBytes:2*1024*1024})}<div id="scan-progress" role="status" aria-live="polite"></div></div><p class="info">Read text PDFs or scan images locally. Review the extracted fields before creating a request.</p>`,`<button data-close>Cancel</button>`,()=>{
+      bindFilePickers($('#invoice-drop'));
+      $('#invoice-drop').addEventListener('files-selected',e=>{if(!e.detail.invalid&&e.detail.files.length)void scan(e.detail.files[0]);});
       const drop=$('#invoice-drop');
       drop.ondragover=e=>{e.preventDefault();drop.classList.add('dragover');};
       drop.ondragleave=()=>drop.classList.remove('dragover');
@@ -18,17 +20,16 @@ export function openInvoiceScanner({modal,closeModal,onImport,onCancel}) {
   async function scan(selected){
     if(controller)return;
     error('');
-    if(selected.size>2*1024*1024)return error('Please use an invoice of 2 MB or less.');
-    if(!/\.(pdf|png|jpe?g|webp)$/i.test(selected.name))return error('Choose a PDF, PNG, JPG or WebP invoice.');
-    file=selected;controller=new AbortController();$('#invoice-upload').disabled=true;
+    try{validateFiles([selected],2*1024*1024,{invoice:true});}catch(e){return error(e.message);}
+    file=selected;controller=new AbortController();const scanController=controller;const picker=$('[data-file-picker=invoice-upload]');picker.disabled=true;
     $('#scan-progress').innerHTML='<span class="scan-spinner"></span> Reading invoice…';
     try{
-      attachment=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve({name:file.name,size:file.size,type:file.type,data:r.result});r.onerror=()=>reject(new Error('Could not read this file.'));r.readAsDataURL(file);});
-      if(controller.signal.aborted)return;
-      const response=await fetch('/api/invoice/scan',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'ApprovalWorkspace'},body:JSON.stringify({name:file.name,data:attachment.data.split(',')[1]}),signal:controller.signal});
-      const data=await response.json();if(!response.ok)throw new Error(data.error||'Scanning failed.');
+      [attachment]=await readUploadFiles([file],{maxBytes:2*1024*1024,invoice:true,signal:scanController.signal});
+      if(scanController.signal.aborted)return;
+      const response=await fetch('/api/invoice/scan',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'ApprovalWorkspace'},body:JSON.stringify({name:file.name,data:attachment.data.split(',')[1]}),signal:scanController.signal});
+      const data=await response.json();if(scanController.signal.aborted)return;if(!response.ok)throw new Error(data.error||'Scanning failed.');
       result=data;controller=null;review();
-    }catch(e){if(e.name==='AbortError')return;controller=null;error(e.message);if($('#invoice-upload'))$('#invoice-upload').disabled=false;if($('#scan-progress'))$('#scan-progress').textContent='';}
+    }catch(e){if(e.name==='AbortError')return;controller=null;error(e.message);if(picker.isConnected){picker.disabled=false;picker.querySelectorAll('input').forEach(i=>i.value='');picker.querySelector('.file-selection').textContent='Choose the file again to retry.';}if($('#scan-progress'))$('#scan-progress').textContent='';}
   }
   function review(){
     previewURL=URL.createObjectURL(file);
@@ -37,7 +38,7 @@ export function openInvoiceScanner({modal,closeModal,onImport,onCancel}) {
     const input=(key,type='text')=>`<label class="field scan-field">${labels[key]}<input id="scan-${key}" name="${key}" type="${type}" ${['supplier','reference','date','currency','subtotal','tax','total'].includes(key)?'required':''} ${type==='number'?'min="0" step="0.01"':''} value="${esc(f[key]??'')}" placeholder="${type==='number'?'Enter amount':'Not found — enter manually'}"><small class="scan-source ${f[key]===''||f[key]===null?'missing':''}" title="${esc(result.evidence[key]?.text||'')}">${f[key]===''||f[key]===null?'Not found':result.evidence[key]?.kind==='calculated'?'Calculated — check against invoice':result.evidence[key]?.kind==='header candidate'?'Header candidate — check supplier':'Detected — review'}</small></label>`;
     const foreign=f.currency&&f.currency!=='AUD';
     const unsupportedCredit=/\b(?:credit\s+note|credit\s+memo)\b/i.test(result.text);
-    modal('Review invoice',`<div class="scan-meta"><strong>${esc(file.name)}</strong><span>${result.pages.length} page${result.pages.length===1?'':'s'} · ${result.pages.some(p=>p.method==='OCR')?'OCR':'PDF text'}</span></div><div class="scan-review"><div class="scan-preview">${result.previews?.length?result.previews.map(p=>`<div class="preview-page-number">Page ${p.number} of ${result.pages.length}</div><img alt="Invoice page ${p.number}" src="${p.data}">`).join(''):`<img alt="Original uploaded invoice" src="${previewURL}">`}</div><form id="scan-fields"><div class="form-grid">${input('supplier')}${input('reference')}${input('date','date')}${input('dueDate','date')}${input('abn')}${input('currency')}${input('subtotal','number')}${input('tax','number')}${input('total','number')}</div><div id="scan-totals-check" class="info" role="status"></div></form></div>${result.warnings.length?`<div class="scan-warnings">${result.warnings.map(w=>`<div>${esc(w)}</div>`).join('')}</div>`:''}<p class="info">Check the total against your invoice before continuing.</p><details class="scan-text"><summary>View extracted text</summary><pre>${esc(result.text)}</pre></details><label class="scan-confirm"><input type="checkbox" id="scan-confirm">I have checked the fields and totals against the invoice.</label>`,`<button id="scan-back">Choose another file</button><button class="primary" id="use-invoice" ${foreign||unsupportedCredit?'disabled':''}>Use invoice details</button>`,()=>{
+    modal('Review invoice',`<div class="scan-meta"><strong>${esc(file.name)}</strong><span>${result.pages.length} page${result.pages.length===1?'':'s'} · ${result.pages.some(p=>p.method==='OCR')?'OCR':'PDF text'}</span></div><div class="scan-review"><div class="scan-preview">${result.previews?.length?result.previews.map(p=>`<div class="preview-page-number">Page ${p.number} of ${result.pages.length}</div><img loading="lazy" decoding="async" alt="Invoice page ${p.number}" src="${p.data}">`).join(''):`<img decoding="async" alt="Original uploaded invoice" src="${previewURL}">`}</div><form id="scan-fields"><div class="form-grid">${input('supplier')}${input('reference')}${input('date','date')}${input('dueDate','date')}${input('abn')}${input('currency')}${input('subtotal','number')}${input('tax','number')}${input('total','number')}</div><div id="scan-totals-check" class="info" role="status"></div></form></div>${result.warnings.length?`<div class="scan-warnings">${result.warnings.map(w=>`<div>${esc(w)}</div>`).join('')}</div>`:''}<p class="info">Check the total against your invoice before continuing.</p><details class="scan-text"><summary>View extracted text</summary><pre>${esc(result.text)}</pre></details><label class="scan-confirm"><input type="checkbox" id="scan-confirm">I have checked the fields and totals against the invoice.</label>`,`<button id="scan-back">Choose another file</button><button class="primary" id="use-invoice" ${foreign||unsupportedCredit?'disabled':''}>Use invoice details</button>`,()=>{
       $('#overlay .modal').classList.add('scan-modal');
       $('#scan-back').onclick=()=>{teardown();previewURL=null;file=null;attachment=null;result=null;upload();};
       $('#scan-fields').onsubmit=e=>e.preventDefault();
