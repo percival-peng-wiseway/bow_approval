@@ -575,3 +575,18 @@ input[type=checkbox],input[type=radio]{width:18px;height:18px}
 @media(max-width:600px){.staff-account-list .workspace-item{flex-wrap:wrap;} .settings-actions{flex-wrap:wrap;}}
 
 #staff-account-form,#ai-settings-form{display:grid;gap:18px;}
+
+/* Keep native file inputs visible and directly tappable on iOS and Android. */
+.file-picker{min-width:0;max-width:100%;margin:12px 0;padding:14px;border:1px solid var(--line);border-radius:8px;text-align:left}
+.file-picker legend{font-weight:600}.file-picker-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.file-picker input[type=file]{position:static;opacity:1;display:block;width:100%;min-width:0;max-width:100%;min-height:44px;font-size:16px;padding:6px 0}
+.file-picker input::file-selector-button{font:inherit;min-height:44px;cursor:pointer;border:1px solid var(--line);border-radius:5px;background:#f5f7f9;padding:8px 12px}
+.file-picker small,.file-selection{overflow-wrap:anywhere;line-height:1.5}.file-selection:empty{display:none}
+@media(max-width:760px){
+ .file-picker-options{grid-template-columns:minmax(0,1fr)}.file-picker .field{min-width:0}
+ .main,.business-detail,.business-list,.modal-body{min-width:0}.actor.signed-in-user{flex-wrap:wrap}.actor.signed-in-user>div{flex-wrap:wrap}
+ .signed-in-user .sign-out,button.icon-button,.scan-in-form{min-height:44px}.modal{max-width:100%;max-height:calc(100dvh - 20px)}.modal-body{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+ .business-file,.document-row{overflow-wrap:anywhere}.business-actions{flex-wrap:wrap}.business-actions button{min-height:44px}
+ .customer-account-actions{flex-wrap:wrap}.login-card{min-width:0}.login-page{padding-bottom:max(20px,env(safe-area-inset-bottom))}
+}
+@media(max-width:760px){.topbar,.main:has(.request-home) .topbar{height:auto;flex-shrink:0}.mobile-menu,.nav{min-height:44px}}

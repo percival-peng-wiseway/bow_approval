@@ -205,3 +205,7 @@ h1,h2,h3,h4{color:var(--ink)}
 .service-control-summary .overview-row { padding:14px 0; }
 .oa-stage[data-approval-status="Invoice preparation"] { background:#fff3db; color:#825509; }
 .oa-stage[data-approval-status="Invoice review"] { background:#e5eff9; color:#245d85; }
+
+/* Mobile native upload controls in the production contract layout. */
+.contract-drop>.file-picker{grid-column:1 / -1;width:100%}
+@media(max-width:760px){.contract-drop.has-files{grid-template-columns:minmax(0,1fr)}.contract-file-actions{flex-wrap:wrap}.modal:has(#contract-form)>footer{display:flex;flex-wrap:wrap}.modal:has(#contract-form)>footer button{min-height:44px}}
